@@ -18,6 +18,6 @@
       "~/*": ["./*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx"],
+  "include": ["**/*.ts", "**/*.tsx", ".wxt/wxt.d.ts"],
   "exclude": ["node_modules", ".output"]
 }
