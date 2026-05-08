@@ -12,6 +12,7 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "types": ["chrome"],
     "baseUrl": ".",
     "paths": {
       "~/*": ["./*"]
