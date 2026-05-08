@@ -54,6 +54,16 @@ describe('AI Service', () => {
     it('throws when API key is missing', async () => {
       await expect(transcribeAudio(new Blob(['data']))).rejects.toThrow('API Key');
     });
+
+    it('throws with status code on API error', async () => {
+      mockStorage.settings = { siliflowApiKey: 'sk-test' };
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        text: () => Promise.resolve('Rate limited'),
+      });
+      await expect(transcribeAudio(new Blob(['data']))).rejects.toThrow('429');
+    });
   });
 
   describe('describeImage', () => {
@@ -79,6 +89,25 @@ describe('AI Service', () => {
       );
       expect(result).toBe('这是一张樱花照片');
     });
+
+    it('throws with status code on API error', async () => {
+      mockStorage.settings = { deepseekApiKey: 'sk-ds' };
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        text: () => Promise.resolve('Server error'),
+      });
+      await expect(describeImage('https://img.jpg')).rejects.toThrow('500');
+    });
+
+    it('throws on malformed response', async () => {
+      mockStorage.settings = { deepseekApiKey: 'sk-ds' };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ choices: [] }),
+      });
+      await expect(describeImage('https://img.jpg')).rejects.toThrow('意外的响应格式');
+    });
   });
 
   describe('summarize', () => {
@@ -94,6 +123,47 @@ describe('AI Service', () => {
       const result = await summarize('长篇内容...', '旅游攻略');
 
       expect(result).toBe('总结内容');
+    });
+
+    it('calls DeepSeek API with correct URL and headers', async () => {
+      mockStorage.settings = { deepseekApiKey: 'sk-ds' };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          choices: [{ message: { content: '总结内容' } }],
+        }),
+      });
+
+      await summarize('长篇内容...', '旅游攻略');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.deepseek.com/v1/chat/completions',
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            Authorization: 'Bearer sk-ds',
+          }),
+        })
+      );
+    });
+
+    it('throws with status code on API error', async () => {
+      mockStorage.settings = { deepseekApiKey: 'sk-ds' };
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        text: () => Promise.resolve('Forbidden'),
+      });
+      await expect(summarize('内容', '标题')).rejects.toThrow('403');
+    });
+
+    it('throws on malformed response', async () => {
+      mockStorage.settings = { deepseekApiKey: 'sk-ds' };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ choices: [{ message: null }] }),
+      });
+      await expect(summarize('内容', '标题')).rejects.toThrow('意外的响应格式');
     });
   });
 });

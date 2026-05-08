@@ -50,9 +50,16 @@ export async function describeImage(imageUrl: string): Promise<string> {
     }),
   });
 
-  if (!res.ok) throw new Error(`DeepSeek 图片理解错误 (${res.status})`);
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`DeepSeek 图片理解错误 (${res.status}): ${errText}`);
+  }
   const data = await res.json();
-  return data.choices[0].message.content;
+  const content = data?.choices?.[0]?.message?.content;
+  if (!content) {
+    throw new Error(`DeepSeek 图片理解返回了意外的响应格式`);
+  }
+  return content;
 }
 
 export async function summarize(content: string, context: string): Promise<string> {
@@ -78,7 +85,14 @@ export async function summarize(content: string, context: string): Promise<strin
     }),
   });
 
-  if (!res.ok) throw new Error(`DeepSeek 总结错误 (${res.status})`);
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`DeepSeek 总结错误 (${res.status}): ${errText}`);
+  }
   const data = await res.json();
-  return data.choices[0].message.content;
+  const result = data?.choices?.[0]?.message?.content;
+  if (!result) {
+    throw new Error(`DeepSeek 总结返回了意外的响应格式`);
+  }
+  return result;
 }
