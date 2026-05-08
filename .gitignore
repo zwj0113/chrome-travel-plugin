@@ -1,0 +1,28 @@
+# API Keys / Secrets
+video-skill/env.properties
+*.env
+.env.*
+credentials.*
+secret.*
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+dist/
+build/
+node_modules/

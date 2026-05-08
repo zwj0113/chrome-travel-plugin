@@ -1,0 +1,160 @@
+<h2>侧边栏 UI 设计</h2>
+<p class="subtitle">Side Panel 的布局、状态和交互流程</p>
+
+<div class="section">
+  <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+
+    <!-- 状态1：空闲 -->
+    <div style="flex: 1; min-width: 240px;">
+      <div class="mockup">
+        <div class="mockup-header">状态1：空闲首页</div>
+        <div class="mockup-body" style="padding: 16px; font-size: 12px; background: #fafafa;">
+          <div style="text-align: center; padding: 20px 0;">
+            <div style="font-size: 32px; margin-bottom: 8px;">🗺️</div>
+            <h3 style="margin: 0; font-size: 16px;">旅游攻略助手</h3>
+            <p style="color: #666; font-size: 11px; margin: 8px 0;">在视频或图文页面点击下方按钮开始</p>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 16px;">
+            <button class="mock-button" style="width: 100%; background: #7c4dff; color: white; padding: 10px; border-radius: 6px; font-size: 14px; cursor: pointer;">
+              🎬 一键提取当前页面
+            </button>
+          </div>
+
+          <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 12px;">
+            <div style="font-size: 11px; color: #999; margin-bottom: 8px;">最近记录</div>
+            <div style="background: #fff; border: 1px solid #eee; border-radius: 4px; padding: 8px; margin-bottom: 6px;">
+              <div style="font-weight: bold; font-size: 12px;">大阪5日游攻略</div>
+              <div style="color: #999; font-size: 10px;">B站 · 3分钟前</div>
+            </div>
+            <div style="background: #fff; border: 1px solid #eee; border-radius: 4px; padding: 8px;">
+              <div style="font-weight: bold; font-size: 12px;">京都赏樱路线推荐</div>
+              <div style="color: #999; font-size: 10px;">小红书 · 1小时前</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 状态2：处理中 -->
+    <div style="flex: 1; min-width: 240px;">
+      <div class="mockup">
+        <div class="mockup-header">状态2：处理中</div>
+        <div class="mockup-body" style="padding: 16px; font-size: 12px; background: #fafafa;">
+          <div style="margin-bottom: 12px;">
+            <h4 style="margin: 0 0 4px; font-size: 13px;">大阪5日游攻略 - B站视频</h4>
+            <div style="color: #999; font-size: 10px;">https://bilibili.com/video/BV1xx...</div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="color: #4caf50; font-size: 16px;">✓</span>
+              <span style="font-size: 12px; flex: 1;">提取视频信息</span>
+              <span style="color: #999; font-size: 10px;">完成</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="color: #4caf50; font-size: 16px;">✓</span>
+              <span style="font-size: 12px; flex: 1;">下载音频</span>
+              <span style="color: #999; font-size: 10px;">3.2MB</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="color: #2196f3; font-size: 16px;">⟳</span>
+              <span style="font-size: 12px; flex: 1; font-weight: bold;">语音转录中</span>
+              <span style="color: #2196f3; font-size: 10px;">硅基流动</span>
+            </div>
+            <div style="background: #e3f2fd; border-radius: 4px; height: 4px; overflow: hidden;">
+              <div style="background: #2196f3; height: 100%; width: 60%;"></div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; opacity: 0.4;">
+              <span style="font-size: 16px;">○</span>
+              <span style="font-size: 12px; flex: 1;">内容总结</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; opacity: 0.4;">
+              <span style="font-size: 16px;">○</span>
+              <span style="font-size: 12px; flex: 1;">抓取评论 (前100条)</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; opacity: 0.4;">
+              <span style="font-size: 16px;">○</span>
+              <span style="font-size: 12px; flex: 1;">生成 Markdown</span>
+            </div>
+          </div>
+
+          <button style="margin-top: 16px; width: 100%; background: #f5f5f5; color: #999; padding: 8px; border-radius: 4px; font-size: 12px; border: 1px solid #ddd; cursor: pointer;">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 状态3：完成 -->
+    <div style="flex: 1; min-width: 240px;">
+      <div class="mockup">
+        <div class="mockup-header">状态3：完成预览</div>
+        <div class="mockup-body" style="padding: 16px; font-size: 12px; background: #fafafa;">
+          <div style="margin-bottom: 12px;">
+            <h4 style="margin: 0 0 4px; font-size: 13px;">大阪5日游攻略</h4>
+            <div style="display: flex; gap: 8px; color: #999; font-size: 10px;">
+              <span>B站</span>
+              <span>·</span>
+              <span>2,847字</span>
+              <span>·</span>
+              <span>评论100条</span>
+            </div>
+          </div>
+
+          <!-- Markdown 预览区 -->
+          <div style="background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; padding: 10px; font-size: 11px; max-height: 220px; overflow-y: auto; line-height: 1.6;">
+            <div style="color: #7c4dff; font-weight: bold;"># 大阪5日游攻略</div>
+            <div style="color: #999; margin: 4px 0;">> 来源: B站 | 作者: 旅行达人...</div>
+            <div style="margin: 8px 0 4px; font-weight: bold;">## 视频总结</div>
+            <div>本视频介绍了大阪5日游的完整路线规划...</div>
+            <div style="margin: 8px 0 4px; font-weight: bold;">## 转录文本</div>
+            <div>大家好，今天给大家分享大阪5日游攻略...</div>
+            <div style="margin: 8px 0 4px; font-weight: bold;">## 评论精选</div>
+            <div>...</div>
+          </div>
+
+          <div style="display: flex; gap: 8px; margin-top: 12px;">
+            <button class="mock-button" style="flex: 1; background: #7c4dff; color: white; padding: 10px; border-radius: 6px; font-size: 13px;">
+              ⬇ 下载 Markdown
+            </button>
+          </div>
+          <button style="margin-top: 8px; width: 100%; background: #fff; color: #7c4dff; padding: 8px; border-radius: 4px; font-size: 12px; border: 1px solid #7c4dff; cursor: pointer;">📋 复制到剪贴板</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="section" style="margin-top: 24px;">
+  <h3>评论配置弹窗</h3>
+  <p class="subtitle">点击"一键提取"时弹出，让用户配置本次提取参数</p>
+  <div class="mockup">
+    <div class="mockup-body" style="padding: 16px; font-size: 12px; background: #fafafa; max-width: 300px;">
+      <h4 style="margin: 0 0 12px;">提取配置</h4>
+      <div style="margin-bottom: 10px;">
+        <label style="font-size: 11px; color: #666; display: block; margin-bottom: 4px;">评论数量</label>
+        <select style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #ddd;">
+          <option>热门前 20 条</option>
+          <option selected>热门前 50 条</option>
+          <option>热门前 100 条</option>
+          <option>全部评论</option>
+        </select>
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label style="font-size: 11px; color: #666; display: block; margin-bottom: 4px;">评论排序</label>
+        <select style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #ddd;">
+          <option selected>按热度</option>
+          <option>按时间</option>
+        </select>
+      </div>
+      <div style="margin-bottom: 10px;">
+        <label style="font-size: 11px; color: #666; display: block; margin-bottom: 4px;">是否下载视频文件</label>
+        <div style="display: flex; gap: 8px;">
+          <label><input type="radio" name="dl" checked> 仅转录</label>
+          <label><input type="radio" name="dl"> 下载+转录</label>
+        </div>
+      </div>
+      <button class="mock-button" style="width: 100%; background: #7c4dff; color: white; padding: 8px; border-radius: 6px; font-size: 13px; margin-top: 4px;">开始提取</button>
+    </div>
+  </div>
+</div>

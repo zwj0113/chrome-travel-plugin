@@ -1,0 +1,95 @@
+<h2>整体架构与数据流</h2>
+<p class="subtitle">适配器 + 流水线架构的完整组件关系</p>
+
+<div class="section">
+  <div class="mockup">
+    <div class="mockup-header">架构全景图</div>
+    <div class="mockup-body" style="padding: 16px; font-size: 13px;">
+      <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+
+        <!-- 左侧：网页层 -->
+        <div style="flex: 1; min-width: 200px;">
+          <div style="background: #e8f5e9; border: 2px solid #4caf50; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+            <h4 style="margin: 0 0 8px; color: #2e7d32;">🌐 网页层（Content Scripts）</h4>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <div style="background: #fff; border: 1px solid #81c784; border-radius: 4px; padding: 6px; font-size: 11px;">
+                <strong>YouTube Adapter</strong><br>
+                video URL · subtitles · metadata · comments
+              </div>
+              <div style="background: #fff; border: 1px solid #81c784; border-radius: 4px; padding: 6px; font-size: 11px;">
+                <strong>Bilibili Adapter</strong><br>
+                video URL · danmaku · metadata · comments
+              </div>
+              <div style="background: #fff; border: 1px solid #81c784; border-radius: 4px; padding: 6px; font-size: 11px;">
+                <strong>Douyin Adapter</strong><br>
+                video URL · metadata · comments
+              </div>
+              <div style="background: #fff; border: 1px solid #81c784; border-radius: 4px; padding: 6px; font-size: 11px;">
+                <strong>Xiaohongshu Adapter</strong><br>
+                images · note text · metadata · comments
+              </div>
+            </div>
+          </div>
+          <div style="text-align: center; color: #666; font-size: 12px;">⬆ Chrome Message API ⬇</div>
+        </div>
+
+        <!-- 中间：Background 层 -->
+        <div style="flex: 1.5; min-width: 260px;">
+          <div style="background: #f3e5f5; border: 2px solid #9c27b0; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+            <h4 style="margin: 0 0 8px; color: #7b1fa2;">⚙️ 后台服务层（Service Worker）</h4>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <div style="background: #fff; border: 1px solid #ce93d8; border-radius: 4px; padding: 6px; font-size: 11px;">
+                <strong>Pipeline Orchestrator</strong> — 流水线编排，控制提取→处理→生成
+              </div>
+              <div style="background: #fff; border: 1px solid #ce93d8; border-radius: 4px; padding: 6px; font-size: 11px;">
+                <strong>Video Downloader</strong> — 视频/音频下载与格式转换
+              </div>
+              <div style="background: #fff; border: 1px solid #ce93d8; border-radius: 4px; padding: 6px; font-size: 11px;">
+                <strong>AI Service</strong> — 硅基流动/DeepSeek API 调用 + Whisper 降级
+              </div>
+              <div style="background: #fff; border: 1px solid #ce93d8; border-radius: 4px; padding: 6px; font-size: 11px;">
+                <strong>Markdown Generator</strong> — 模板化生成一站式 MD 文件
+              </div>
+              <div style="background: #fff; border: 1px solid #ce93d8; border-radius: 4px; padding: 6px; font-size: 11px;">
+                <strong>Config Manager</strong> — API Key、评论数量等配置管理
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧：Side Panel -->
+        <div style="flex: 0.8; min-width: 160px;">
+          <div style="background: #e3f2fd; border: 2px solid #2196f3; border-radius: 8px; padding: 12px;">
+            <h4 style="margin: 0 0 8px; color: #1565c0;">📋 侧边栏（Side Panel）</h4>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <div style="background: #fff; border: 1px solid #90caf9; border-radius: 4px; padding: 6px; font-size: 11px;">
+                操作按钮区
+              </div>
+              <div style="background: #fff; border: 1px solid #90caf9; border-radius: 4px; padding: 6px; font-size: 11px;">
+                实时进度展示
+              </div>
+              <div style="background: #fff; border: 1px solid #90caf9; border-radius: 4px; padding: 6px; font-size: 11px;">
+                Markdown 预览
+              </div>
+              <div style="background: #fff; border: 1px solid #90caf9; border-radius: 4px; padding: 6px; font-size: 11px;">
+                下载按钮
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 数据流 -->
+      <div style="margin-top: 16px; background: #fffde7; border: 1px solid #fdd835; border-radius: 8px; padding: 12px;">
+        <h4 style="margin: 0 0 8px; color: #f57f17;">🔄 核心数据流</h4>
+        <div style="font-size: 12px; line-height: 2;">
+          <strong>视频类页面：</strong><br>
+          用户点击 → 适配器提取视频URL/元数据 → 下载音频 → 硅基流动转录(失败→Whisper) → AI总结 → 抓取评论 → 生成MD → 侧边栏预览+下载<br><br>
+          <strong>图文类页面：</strong><br>
+          用户点击 → 适配器提取图片/文本/元数据 → DeepSeek图片理解+内容总结 → 抓取评论 → 生成MD → 侧边栏预览+下载
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

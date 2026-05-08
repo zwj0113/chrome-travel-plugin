@@ -1,0 +1,161 @@
+<h2>Chrome 插件架构方案</h2>
+<p class="subtitle">选择最适合旅游攻略信息收集场景的架构</p>
+
+<div class="section" style="margin-bottom: 32px;">
+  <div class="cards">
+    <div class="card" data-choice="a" onclick="toggleSelect(this)">
+      <div class="card-image">
+        <div class="mockup">
+          <div class="mockup-header">方案 A：内容脚本集中式</div>
+          <div class="mockup-body" style="padding: 12px; font-size: 13px;">
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="background: #e8f5e9; border: 1px solid #4caf50; border-radius: 6px; padding: 8px;">
+                <strong>YouTube 内容脚本</strong><br>
+                <span style="font-size: 11px;">DOM解析 + 视频下载 + 评论抓取 + API调用 + Markdown生成</span>
+              </div>
+              <div style="background: #e3f2fd; border: 1px solid #2196f3; border-radius: 6px; padding: 8px;">
+                <strong>B站 内容脚本</strong><br>
+                <span style="font-size: 11px;">DOM解析 + 视频下载 + 评论抓取 + API调用 + Markdown生成</span>
+              </div>
+              <div style="background: #fff3e0; border: 1px solid #ff9800; border-radius: 6px; padding: 8px;">
+                <strong>小红书 内容脚本</strong><br>
+                <span style="font-size: 11px;">DOM解析 + 图片识别 + 评论抓取 + API调用 + Markdown生成</span>
+              </div>
+              <div style="background: #f5f5f5; border: 1px solid #999; border-radius: 6px; padding: 8px; text-align: center;">
+                <strong>Background</strong><br>
+                <span style="font-size: 11px;">仅做 API 转发</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <h3>A. 内容脚本集中式</h3>
+        <p>每个平台一个"大而全"的内容脚本，承担所有逻辑</p>
+      </div>
+    </div>
+
+    <div class="card" data-choice="b" onclick="toggleSelect(this)">
+      <div class="card-image">
+        <div class="mockup">
+          <div class="mockup-header">方案 B：适配器 + 流水线架构 ⭐ 推荐</div>
+          <div class="mockup-body" style="padding: 12px; font-size: 13px;">
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; gap: 6px;">
+                <div style="background: #e8f5e9; border: 1px solid #4caf50; border-radius: 6px; padding: 6px; flex: 1; text-align: center; font-size: 11px;">
+                  <strong>YouTube 适配器</strong><br>仅DOM提取
+                </div>
+                <div style="background: #e3f2fd; border: 1px solid #2196f3; border-radius: 6px; padding: 6px; flex: 1; text-align: center; font-size: 11px;">
+                  <strong>B站 适配器</strong><br>仅DOM提取
+                </div>
+                <div style="background: #fff3e0; border: 1px solid #ff9800; border-radius: 6px; padding: 6px; flex: 1; text-align: center; font-size: 11px;">
+                  <strong>小红书 适配器</strong><br>仅DOM提取
+                </div>
+              </div>
+              <div style="text-align: center; font-size: 16px;">⬇</div>
+              <div style="background: #f3e5f5; border: 2px solid #9c27b0; border-radius: 6px; padding: 8px;">
+                <strong style="color: #9c27b0;">Background 流水线编排</strong><br>
+                <span style="font-size: 11px;">提取 → 下载 → 转录 → 总结 → 生成MD</span>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <div style="background: #e0f7fa; border: 1px solid #00bcd4; border-radius: 6px; padding: 6px; flex: 1; text-align: center; font-size: 11px;">
+                  <strong>AI 服务层</strong><br>硅基流动/DeepSeek
+                </div>
+                <div style="background: #fce4ec; border: 1px solid #e91e63; border-radius: 6px; padding: 6px; flex: 1; text-align: center; font-size: 11px;">
+                  <strong>降级服务</strong><br>Whisper 本地
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <h3>B. 适配器 + 流水线 ⭐</h3>
+        <p>平台适配器只做 DOM 提取，Background 编排处理流水线</p>
+      </div>
+    </div>
+
+    <div class="card" data-choice="c" onclick="toggleSelect(this)">
+      <div class="card-image">
+        <div class="mockup">
+          <div class="mockup-header">方案 C：Offscreen + Worker 架构</div>
+          <div class="mockup-body" style="padding: 12px; font-size: 13px;">
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="background: #e8f5e9; border: 1px solid #4caf50; border-radius: 6px; padding: 6px; text-align: center; font-size: 11px;">
+                <strong>内容脚本</strong> — DOM提取
+              </div>
+              <div style="text-align: center; font-size: 16px;">⬇</div>
+              <div style="background: #f3e5f5; border: 1px solid #9c27b0; border-radius: 6px; padding: 6px; text-align: center; font-size: 11px;">
+                <strong>Service Worker</strong> — 编排调度
+              </div>
+              <div style="text-align: center; font-size: 16px;">⬇</div>
+              <div style="display: flex; gap: 6px;">
+                <div style="background: #e0f7fa; border: 1px solid #00bcd4; border-radius: 6px; padding: 6px; flex: 1; text-align: center; font-size: 11px;">
+                  <strong>Offscreen Doc</strong><br>音频处理
+                </div>
+                <div style="background: #fce4ec; border: 1px solid #e91e63; border-radius: 6px; padding: 6px; flex: 1; text-align: center; font-size: 11px;">
+                  <strong>Web Worker</strong><br>Whisper推理
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <h3>C. Offscreen + Worker</h3>
+        <p>利用 Chrome 新 API 做重型处理，更现代但更复杂</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>对比总结</h3>
+  <table style="width:100%; border-collapse: collapse; font-size: 14px;">
+    <thead>
+      <tr style="border-bottom: 2px solid #ddd;">
+        <th style="text-align:left; padding: 8px;"></th>
+        <th style="text-align:center; padding: 8px;">A. 集中式</th>
+        <th style="text-align:center; padding: 8px; background: #f3e5f5;">B. 适配器+流水线</th>
+        <th style="text-align:center; padding: 8px;">C. Offscreen</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 8px;"><strong>可扩展性</strong></td>
+        <td style="text-align:center; padding: 8px; color: #e53935;">低 — 加平台需改大脚本</td>
+        <td style="text-align:center; padding: 8px; color: #43a047; background: #f3e5f5;">高 — 加个适配器即可</td>
+        <td style="text-align:center; padding: 8px; color: #43a047;">高</td>
+      </tr>
+      <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 8px;"><strong>维护难度</strong></td>
+        <td style="text-align:center; padding: 8px; color: #e53935;">高 — 逻辑耦合</td>
+        <td style="text-align:center; padding: 8px; color: #43a047; background: #f3e5f5;">低 — 职责分离</td>
+        <td style="text-align:center; padding: 8px; color: #ff9800;">中 — 新API不成熟</td>
+      </tr>
+      <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 8px;"><strong>本地处理能力</strong></td>
+        <td style="text-align:center; padding: 8px; color: #ff9800;">中</td>
+        <td style="text-align:center; padding: 8px; color: #ff9800; background: #f3e5f5;">中 — 需Offscreen辅助</td>
+        <td style="text-align:center; padding: 8px; color: #43a047;">强 — 原生支持</td>
+      </tr>
+      <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 8px;"><strong>开发复杂度</strong></td>
+        <td style="text-align:center; padding: 8px; color: #43a047;">低</td>
+        <td style="text-align:center; padding: 8px; color: #ff9800; background: #f3e5f5;">中</td>
+        <td style="text-align:center; padding: 8px; color: #e53935;">高</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px;"><strong>Whisper降级支持</strong></td>
+        <td style="text-align:center; padding: 8px; color: #e53935;">难实现</td>
+        <td style="text-align:center; padding: 8px; color: #43a047; background: #f3e5f5;">可扩展接入</td>
+        <td style="text-align:center; padding: 8px; color: #43a047;">原生支持</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section" style="margin-top: 24px; padding: 16px; background: #f3e5f5; border-radius: 8px;">
+  <h3 style="margin-top: 0;">💡 推荐：方案 B</h3>
+  <p>理由：平台适配器只负责 DOM 提取（薄层），核心逻辑（AI调用、流水线、Markdown生成）集中在 Background，职责清晰。新增平台只需加一个适配器。Whisper 本地降级可以通过 Offscreen Document 按需扩展，不影响主架构。</p>
+</div>
