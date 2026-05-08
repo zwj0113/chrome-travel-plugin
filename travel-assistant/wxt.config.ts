@@ -4,7 +4,7 @@ export default defineConfig({
   manifest: {
     name: '旅游攻略助手',
     description: '一键提取视频/图文内容为 Markdown，旅游攻略信息收集利器',
-    permissions: ['sidePanel', 'storage', 'downloads', 'activeTab'],
+    permissions: ['sidePanel', 'storage', 'downloads', 'activeTab', 'offscreen'],
     host_permissions: [
       '*://*.youtube.com/*',
       '*://*.bilibili.com/*',
@@ -17,6 +17,9 @@ export default defineConfig({
     ],
     action: {
       default_title: '旅游攻略助手',
+    },
+    side_panel: {
+      default_path: 'sidepanel.html',
     },
   },
 });
