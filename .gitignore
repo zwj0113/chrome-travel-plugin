@@ -22,6 +22,9 @@ venv/
 .DS_Store
 Thumbs.db
 
+# Playwright MCP
+.playwright-mcp/
+
 # Build
 dist/
 build/
