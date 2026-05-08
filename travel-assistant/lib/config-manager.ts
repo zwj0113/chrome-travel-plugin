@@ -11,8 +11,12 @@ export const DEFAULT_SETTINGS: UserSettings = {
 const STORAGE_KEY = 'settings';
 
 export function loadSettings(): Promise<UserSettings> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     chrome.storage.local.get([STORAGE_KEY], (result) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
       const stored = result[STORAGE_KEY] as Partial<UserSettings> | undefined;
       resolve({ ...DEFAULT_SETTINGS, ...stored });
     });
@@ -20,31 +24,29 @@ export function loadSettings(): Promise<UserSettings> {
 }
 
 export function saveSettings(partial: Partial<UserSettings>): Promise<void> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     loadSettings().then((current) => {
       const updated = { ...current, ...partial };
-      chrome.storage.local.set({ [STORAGE_KEY]: updated }, () => resolve());
-    });
+      chrome.storage.local.set({ [STORAGE_KEY]: updated }, () => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        resolve();
+      });
+    }).catch(reject);
   });
 }
 
-const API_KEY_KEYS: Record<'siliflow' | 'deepseek', string> = {
+const API_KEY_MAP: Record<'siliflow' | 'deepseek', keyof Pick<UserSettings, 'siliflowApiKey' | 'deepseekApiKey'>> = {
   siliflow: 'siliflowApiKey',
   deepseek: 'deepseekApiKey',
 };
 
 export function getApiKey(service: 'siliflow' | 'deepseek'): Promise<string> {
-  const key = API_KEY_KEYS[service];
-  return new Promise((resolve) => {
-    chrome.storage.local.get([key], (result) => {
-      resolve((result[key] as string) || '');
-    });
-  });
+  return loadSettings().then(settings => settings[API_KEY_MAP[service]]);
 }
 
 export function setApiKey(service: 'siliflow' | 'deepseek', value: string): Promise<void> {
-  const key = API_KEY_KEYS[service];
-  return new Promise((resolve) => {
-    chrome.storage.local.set({ [key]: value }, () => resolve());
-  });
+  return saveSettings({ [API_KEY_MAP[service]]: value } as Partial<UserSettings>);
 }

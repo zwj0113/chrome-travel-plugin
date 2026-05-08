@@ -1,12 +1,25 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { UserSettings } from '../lib/types';
 
-// Mock chrome.storage
+// Mock chrome.storage with runtime.lastError support
 const mockStorage: Record<string, unknown> = {};
+const chromeError = { current: null as { message: string } | null };
+
+const runtimeObj = {
+  get lastError() { return chromeError.current; },
+  set lastError(v: { message: string } | null) { chromeError.current = v; },
+};
+
 vi.stubGlobal('chrome', {
   storage: {
     local: {
       get: (keys: string[], cb: (result: Record<string, unknown>) => void) => {
+        if (chromeError.current) {
+          runtimeObj.lastError = chromeError.current;
+          cb({});
+          runtimeObj.lastError = null;
+          return;
+        }
         const result: Record<string, unknown> = {};
         for (const key of keys) {
           if (key in mockStorage) result[key] = mockStorage[key];
@@ -14,12 +27,18 @@ vi.stubGlobal('chrome', {
         cb(result);
       },
       set: (items: Record<string, unknown>, cb?: () => void) => {
+        if (chromeError.current) {
+          runtimeObj.lastError = chromeError.current;
+          cb?.();
+          runtimeObj.lastError = null;
+          return;
+        }
         Object.assign(mockStorage, items);
         cb?.();
       },
     },
   },
-  runtime: { lastError: null },
+  runtime: runtimeObj,
 });
 
 import {
@@ -33,6 +52,7 @@ import {
 describe('config-manager', () => {
   beforeEach(() => {
     Object.keys(mockStorage).forEach(k => delete mockStorage[k]);
+    chromeError.current = null;
   });
 
   describe('loadSettings', () => {
@@ -61,7 +81,7 @@ describe('config-manager', () => {
 
   describe('getApiKey', () => {
     it('returns stored API key when present', async () => {
-      mockStorage.siliflowApiKey = 'sk-test123';
+      mockStorage.settings = { siliflowApiKey: 'sk-test123' };
       const key = await getApiKey('siliflow');
       expect(key).toBe('sk-test123');
     });
@@ -73,9 +93,22 @@ describe('config-manager', () => {
   });
 
   describe('setApiKey', () => {
-    it('stores API key in dedicated storage key', async () => {
+    it('stores API key in settings storage', async () => {
       await setApiKey('deepseek', 'sk-ds-456');
-      expect(mockStorage.deepseekApiKey).toBe('sk-ds-456');
+      const settings = mockStorage.settings as UserSettings;
+      expect(settings.deepseekApiKey).toBe('sk-ds-456');
+    });
+  });
+
+  describe('error handling', () => {
+    it('loadSettings rejects on chrome.runtime.lastError', async () => {
+      chromeError.current = { message: 'Storage read failed' };
+      await expect(loadSettings()).rejects.toThrow('Storage read failed');
+    });
+
+    it('saveSettings rejects on chrome.runtime.lastError', async () => {
+      chromeError.current = { message: 'Storage write failed' };
+      await expect(saveSettings({ language: 'en' })).rejects.toThrow('Storage write failed');
     });
   });
 });
