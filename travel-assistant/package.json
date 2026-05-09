@@ -1,0 +1,24 @@
+{
+  "name": "travel-assistant",
+  "version": "1.0.0",
+  "description": "旅游攻略助手 - 一键提取视频/图文内容为 Markdown",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "test": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "wxt": "^0.20.25"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.1.42",
+    "jsdom": "^29.1.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5"
+  }
+}

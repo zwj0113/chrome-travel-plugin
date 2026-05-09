@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><link rel="stylesheet" href="./style.css"></head>
+<body>
+  <div class="settings-container">
+    <h1>⚙️ 旅游攻略助手 — 设置</h1>
+
+    <section class="settings-section">
+      <h2>API Key 配置</h2>
+      <div class="form-group">
+        <label>硅基流动 API Key（语音转文字）</label>
+        <input type="password" id="siliflow-key" placeholder="sk-..." class="input-full">
+        <button id="btn-test-siliflow" class="btn btn-sm btn-outline">测试连接</button>
+        <span id="siliflow-status" class="status-text"></span>
+      </div>
+      <div class="form-group">
+        <label>DeepSeek API Key（图片理解 + 内容总结）</label>
+        <input type="password" id="deepseek-key" placeholder="sk-..." class="input-full">
+        <button id="btn-test-deepseek" class="btn btn-sm btn-outline">测试连接</button>
+        <span id="deepseek-status" class="status-text"></span>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <h2>默认设置</h2>
+      <div class="form-group">
+        <label>默认评论数量</label>
+        <select id="default-comment-count">
+          <option value="20">热门前 20 条</option>
+          <option value="50" selected>热门前 50 条</option>
+          <option value="100">热门前 100 条</option>
+          <option value="0">全部评论</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>默认评论排序</label>
+        <select id="default-comment-sort">
+          <option value="hot" selected>按热度</option>
+          <option value="time">按时间</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>转录语言偏好</label>
+        <select id="language">
+          <option value="zh" selected>中文</option>
+          <option value="en">英文</option>
+          <option value="auto">自动检测</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <h2>历史记录</h2>
+      <div id="history-list"></div>
+      <button id="btn-clear-history" class="btn btn-danger">清空历史记录</button>
+    </section>
+
+    <div class="save-bar">
+      <span id="save-status" class="status-text"></span>
+      <button id="btn-save" class="btn btn-primary">保存设置</button>
+    </div>
+  </div>
+  <script src="./main.ts" type="module"></script>
+</body>
+</html>
