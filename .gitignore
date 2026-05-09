@@ -25,6 +25,9 @@ Thumbs.db
 # Playwright MCP
 .playwright-mcp/
 
+# Worktrees
+.claude/worktrees/
+
 # Build
 dist/
 build/
