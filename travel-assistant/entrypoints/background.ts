@@ -112,7 +112,7 @@ export default defineBackground(() => {
   async function handleStartExtraction(tabId: number, config: ExtractConfig) {
     cancelled = false;
 
-    const response: any = await chrome.tabs.sendMessage(tabId, { type: MSG.EXTRACT_PAGE_DATA });
+    const response: any = await chrome.tabs.sendMessage(tabId, { type: MSG.EXTRACT_PAGE_DATA, config: { commentSort: config.commentSort, commentCount: config.commentCount } }, { frameId: 0 });
 
     if (!response?.data) {
       throw new Error(response?.error || '无法提取页面数据');

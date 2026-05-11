@@ -151,7 +151,7 @@ async function startExtraction() {
 
   try {
     // 请求内容脚本提取数据
-    const response = await chrome.tabs.sendMessage(tab.id, { type: MSG.EXTRACT_PAGE_DATA });
+    const response = await chrome.tabs.sendMessage(tab.id, { type: MSG.EXTRACT_PAGE_DATA, config: { commentSort: config.commentSort, commentCount: config.commentCount } }, { frameId: 0 });
     if (!response?.data) throw new Error('无法提取页面数据');
 
     // 请求 background 执行流水线

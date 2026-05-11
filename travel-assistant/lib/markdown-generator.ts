@@ -32,7 +32,12 @@ function formatMetadata(data: AdapterOutput): string {
 function formatComments(comments: Comment[], sort: string, count: number): string {
   if (!comments.length) return '';
 
-  const sorted = [...comments];
+  const sorted = [...comments].sort((a, b) => {
+    if (sort === 'time') {
+      return new Date(b.time).getTime() - new Date(a.time).getTime();
+    }
+    return b.likes - a.likes;
+  });
   const displayCount = count === 0 ? sorted.length : Math.min(count, sorted.length);
   const items = sorted.slice(0, displayCount);
 

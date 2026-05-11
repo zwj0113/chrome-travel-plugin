@@ -4,6 +4,9 @@ import { MSG } from '../lib/messages';
 export default defineContentScript({
   matches: ['*://*.xiaohongshu.com/explore/*', '*://*.xiaohongshu.com/discovery/item/*'],
   main() {
+    // 只在顶层 frame 响应，避免 iframe 中的内容脚本返回不完整数据
+    if (window.self !== window.top) return;
+
     chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       if (msg.type === MSG.EXTRACT_PAGE_DATA) {
         extractXhsData()

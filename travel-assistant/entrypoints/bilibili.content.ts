@@ -5,9 +5,13 @@ import type { PageDataExtractedPayload, StartExtractionPayload, ExtractionComple
 export default defineContentScript({
   matches: ['*://*.bilibili.com/video/*'],
   main() {
+    // 只在顶层 frame 响应，避免 iframe 中的内容脚本返回不完整数据
+    if (window.self !== window.top) return;
+
     chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       if (msg.type === MSG.EXTRACT_PAGE_DATA) {
-        extractBilibiliData()
+        const cfg = msg.config || {};
+        extractBilibiliData(cfg.commentSort, cfg.commentCount)
           .then((data) => sendResponse({ data }))
           .catch((err) => sendResponse({ error: err.message }));
         return true;
@@ -16,7 +20,7 @@ export default defineContentScript({
   },
 });
 
-async function extractBilibiliData(): Promise<AdapterOutput> {
+async function extractBilibiliData(sort?: string, maxCount?: number): Promise<AdapterOutput> {
   const url = window.location.href;
   const bvid = url.match(/\/video\/(BV[a-zA-Z0-9]+)/)?.[1] || '';
 
@@ -53,7 +57,9 @@ async function extractBilibiliData(): Promise<AdapterOutput> {
       // 如果页面状态中找不到 cid，通过 API 获取
       if (!cid) {
         diag.push('cid_not_in_page, trying view API');
-        const viewResp = await fetch(`https://api.bilibili.com/x/web-interface/view?bvid=${bvid}`);
+        const viewResp = await fetch(`https://api.bilibili.com/x/web-interface/view?bvid=${bvid}`, {
+          headers: { Referer: 'https://www.bilibili.com/' },
+        });
         if (viewResp.ok) {
           viewApiData = await viewResp.json();
           cid = viewApiData?.data?.cid;
@@ -106,8 +112,12 @@ async function extractBilibiliData(): Promise<AdapterOutput> {
   }
   console.log('[travel-assistant] bilibili extract diag:', diag.join(' | '));
 
-  // 提取评论（从页面数据或 API）
+  // 提取评论（从 API，支持跨 mode 分页）
   const comments: Comment[] = [];
+  const targetCount = maxCount || 50;
+  const isHot = sort !== 'time'; // 默认按热度
+  const preferredMode = isHot ? 3 : 2;
+  const alternateMode = isHot ? 2 : 3;
   try {
     // 尝试多个来源获取 aid
     let aid = videoData?.aid || initialState?.aid || initialState?.videoInfo?.aid;
@@ -117,7 +127,9 @@ async function extractBilibiliData(): Promise<AdapterOutput> {
     if (!aid) {
       if (!viewApiData) {
         diag.push('aid_not_in_page, trying view API');
-        const viewResp = await fetch(`https://api.bilibili.com/x/web-interface/view?bvid=${bvid}`);
+        const viewResp = await fetch(`https://api.bilibili.com/x/web-interface/view?bvid=${bvid}`, {
+          headers: { Referer: 'https://www.bilibili.com/' },
+        });
         if (viewResp.ok) {
           viewApiData = await viewResp.json();
         }
@@ -127,32 +139,69 @@ async function extractBilibiliData(): Promise<AdapterOutput> {
     }
 
     if (aid) {
-      const commentUrl = `https://api.bilibili.com/x/v2/reply/main?oid=${aid}&type=1&mode=3`;
-      diag.push(`comment_url=${commentUrl}`);
-      const resp = await fetch(commentUrl);
-      diag.push(`comment_api_status=${resp.status}`);
-      if (!resp.ok) {
-        diag.push(`comment_api_error=${resp.status}`);
-        throw new Error(`评论 API 返回 ${resp.status}`);
+      const fetchedIds = new Set<string>();
+
+      // 从单个 mode 分页获取评论
+      const fetchMode = async (mode: number, maxPages = 10): Promise<number> => {
+        let cursor: number | null = null;
+        let fetched = 0;
+        for (let page = 1; page <= maxPages; page++) {
+          const baseUrl = `https://api.bilibili.com/x/v2/reply/main?oid=${aid}&type=1&mode=${mode}&ps=50`;
+          const url = cursor != null ? `${baseUrl}&next=${cursor}` : baseUrl;
+          diag.push(`comment_m${mode}_p${page}=${fetchedIds.size}total`);
+
+          const resp = await fetch(url, {
+            headers: { Referer: 'https://www.bilibili.com/' },
+          });
+          if (!resp.ok) {
+            diag.push(`comment_m${mode}_p${page}_status=${resp.status}`);
+            break;
+          }
+          const json = await resp.json();
+          if (json.code !== 0) {
+            diag.push(`comment_m${mode}_p${page}_code=${json.code}`);
+            break;
+          }
+
+          const replies = json?.data?.replies || [];
+          diag.push(`comment_m${mode}_p${page}_count=${replies.length}`);
+          if (replies.length === 0) break; // 无更多数据，停止此 mode
+          for (const r of replies) {
+            const rpid = r.rpid_str || String(r.rpid);
+            if (fetchedIds.has(rpid)) continue;
+            fetchedIds.add(rpid);
+            comments.push({
+              author: r.member?.uname || '未知',
+              content: r.content?.message || '',
+              likes: r.like || 0,
+              time: new Date((r.ctime || 0) * 1000).toISOString().split('T')[0],
+              replies: (r.replies || []).map((rr: any) => ({
+                author: rr.member?.uname || '',
+                content: rr.content?.message || '',
+                likes: rr.like || 0,
+                time: '',
+              })),
+            });
+            fetched++;
+          }
+
+          // 如果已收集足够或没有更多页，停止此 mode
+          if (comments.length >= targetCount) break;
+
+          const nextCursor = json?.data?.cursor?.next;
+          if (nextCursor == null) break;
+          cursor = nextCursor;
+        }
+        return fetched;
+      };
+
+      // 先抓首选 mode，不够再抓备选 mode
+      await fetchMode(preferredMode);
+      if (comments.length < targetCount) {
+        await fetchMode(alternateMode);
       }
-      const json = await resp.json();
-      diag.push(`comment_api_code=${json.code}`);
-      const replies = json?.data?.replies || [];
-      diag.push(`comment_count=${replies.length}`);
-      for (const r of replies.slice(0, 100)) {
-        comments.push({
-          author: r.member?.uname || '未知',
-          content: r.content?.message || '',
-          likes: r.like || 0,
-          time: new Date((r.ctime || 0) * 1000).toISOString().split('T')[0],
-          replies: (r.replies || []).map((rr: any) => ({
-            author: rr.member?.uname || '',
-            content: rr.content?.message || '',
-            likes: rr.like || 0,
-            time: '',
-          })),
-        });
-      }
+
+      diag.push(`comment_total=${comments.length}`);
     } else {
       diag.push('aid_not_found_all_sources');
     }
