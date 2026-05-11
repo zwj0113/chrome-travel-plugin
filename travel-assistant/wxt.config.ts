@@ -4,10 +4,12 @@ export default defineConfig({
   manifest: {
     name: '旅游攻略助手',
     description: '一键提取视频/图文内容为 Markdown，旅游攻略信息收集利器',
-    permissions: ['sidePanel', 'storage', 'downloads', 'activeTab', 'offscreen'],
+    permissions: ['sidePanel', 'storage', 'downloads', 'activeTab', 'offscreen', 'declarativeNetRequestWithHostAccess'],
     host_permissions: [
       '*://*.youtube.com/*',
       '*://*.bilibili.com/*',
+      '*://*.bilivideo.com/*',
+      '*://*.hdslb.com/*',
       '*://*.douyin.com/*',
       '*://*.iesdouyin.com/*',
       '*://*.xiaohongshu.com/*',

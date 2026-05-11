@@ -3,8 +3,62 @@ import { runVideoPipeline, runNotePipeline } from '../lib/pipeline';
 import type { ExtractConfig, PipelineState } from '../lib/types';
 
 export default defineBackground(() => {
-  let currentTabId: number | null = null;
   let cancelled = false;
+
+  // ==================== 设置请求头注入 ====================
+
+  setupHeaderRules();
+
+  async function setupHeaderRules() {
+    // 先清掉旧规则，避免 Service Worker 重启后 ID 冲突
+    const existing = await chrome.declarativeNetRequest.getSessionRules();
+    if (existing.length > 0) {
+      await chrome.declarativeNetRequest.updateSessionRules({
+        removeRuleIds: existing.map((r) => r.id),
+      });
+    }
+
+    // 为 B站 CDN 请求自动注入 Referer
+    const bilibiliCdnDomains = ['bilivideo.com', 'hdslb.com'];
+    const rules: chrome.declarativeNetRequest.Rule[] = bilibiliCdnDomains.map((domain, i) => ({
+      id: i + 1,
+      priority: 1,
+      action: {
+        type: chrome.declarativeNetRequest.RuleActionType.MODIFY_HEADERS,
+        requestHeaders: [{
+          header: 'Referer',
+          operation: chrome.declarativeNetRequest.HeaderOperation.SET,
+          value: 'https://www.bilibili.com/',
+        }],
+      },
+      condition: {
+        urlFilter: `*${domain}/*`,
+        resourceTypes: [chrome.declarativeNetRequest.ResourceType.XMLHTTPREQUEST],
+      },
+    }));
+
+    // 为抖音 CDN 请求注入 Referer
+    const douyinRule: chrome.declarativeNetRequest.Rule = {
+      id: rules.length + 1,
+      priority: 1,
+      action: {
+        type: chrome.declarativeNetRequest.RuleActionType.MODIFY_HEADERS,
+        requestHeaders: [{
+          header: 'Referer',
+          operation: chrome.declarativeNetRequest.HeaderOperation.SET,
+          value: 'https://www.douyin.com/',
+        }],
+      },
+      condition: {
+        urlFilter: '*douyinvod.com/*',
+        resourceTypes: [chrome.declarativeNetRequest.ResourceType.XMLHTTPREQUEST],
+      },
+    };
+
+    await chrome.declarativeNetRequest.updateSessionRules({
+      addRules: [...rules, douyinRule],
+    });
+  }
 
   // ==================== Offscreen 管理 ====================
 
@@ -27,7 +81,6 @@ export default defineBackground(() => {
       });
       offscreenReady = true;
     } catch (e) {
-      // 可能已经存在
       offscreenReady = true;
     }
   }
@@ -35,7 +88,6 @@ export default defineBackground(() => {
   // ==================== 消息处理 ====================
 
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-    // 侧边栏 → Background
     if (msg.type === MSG.START_EXTRACTION) {
       handleStartExtraction(msg.tabId, msg.config)
         .then((result) => sendResponse(result))
@@ -43,7 +95,6 @@ export default defineBackground(() => {
       return true;
     }
 
-    // 取消
     if (msg.type === MSG.CANCEL_EXTRACTION) {
       cancelled = true;
       return false;
@@ -60,9 +111,7 @@ export default defineBackground(() => {
 
   async function handleStartExtraction(tabId: number, config: ExtractConfig) {
     cancelled = false;
-    currentTabId = tabId;
 
-    // 向内容脚本请求页面数据
     const response: any = await chrome.tabs.sendMessage(tabId, { type: MSG.EXTRACT_PAGE_DATA });
 
     if (!response?.data) {
@@ -71,12 +120,11 @@ export default defineBackground(() => {
 
     const data = response.data;
 
-    // 进度回调 — 转发到侧边栏
     const onProgress = (state: PipelineState) => {
       chrome.runtime.sendMessage({
         type: MSG.PROGRESS_UPDATE,
         state,
-      }).catch(() => {}); // 忽略 sidepanel 未连接的情况
+      }).catch(() => {});
     };
 
     let result: { markdown: string; filename: string };
@@ -87,7 +135,6 @@ export default defineBackground(() => {
       result = await runNotePipeline(data, config, onProgress);
     }
 
-    // 发送完成结果到侧边栏
     chrome.runtime.sendMessage({
       type: MSG.EXTRACTION_COMPLETE,
       markdown: result.markdown,

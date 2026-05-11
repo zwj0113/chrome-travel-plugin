@@ -19,6 +19,9 @@ export const MSG = {
   // Background ↔ Offscreen
   PROCESS_AUDIO: 'processAudio',
   AUDIO_PROCESSED: 'audioProcessed',
+
+  // Background → 内容脚本（下载媒体）
+  DOWNLOAD_AUDIO: 'downloadAudio',
 } as const;
 
 /** 消息载荷类型 */

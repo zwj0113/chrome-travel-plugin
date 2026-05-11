@@ -50,7 +50,6 @@ function formatComments(comments: Comment[], sort: string, count: number): strin
 export function generateVideoMarkdown(
   data: AdapterOutput,
   transcript: string,
-  summary: string,
   commentSort: string,
   commentCount: number
 ): string {
@@ -61,12 +60,6 @@ export function generateVideoMarkdown(
     `# ${data.title}`,
     '',
     formatMetadata(data),
-    '',
-    '---',
-    '',
-    '## 📝 内容总结',
-    '',
-    summary,
     '',
     '---',
     '',

@@ -1,5 +1,5 @@
 import type { AdapterOutput, ExtractConfig, PipelineState, PipelineStep } from './types';
-import { transcribeAudio, summarize } from './ai-service';
+import { transcribeAudio, formatTranscript, summarize } from './ai-service';
 import { generateVideoMarkdown, generateNoteMarkdown } from './markdown-generator';
 import { loadSettings } from './config-manager';
 
@@ -9,7 +9,7 @@ function makeSteps(data: AdapterOutput): PipelineStep[] {
       { id: 'extract', label: '提取视频信息', status: 'pending' },
       { id: 'download', label: '下载与处理音频', status: 'pending' },
       { id: 'transcribe', label: '语音转录', status: 'pending' },
-      { id: 'summarize', label: '内容总结', status: 'pending' },
+      { id: 'format', label: '智能纠错与格式化', status: 'pending' },
       { id: 'comments', label: '抓取评论', status: 'pending' },
       { id: 'generate', label: '生成 Markdown', status: 'pending' },
     ];
@@ -30,7 +30,7 @@ function buildState(steps: PipelineStep[], cancelled = false): PipelineState {
 export async function runVideoPipeline(
   data: AdapterOutput,
   config: ExtractConfig,
-  onProgress: (state: PipelineState) => void
+  onProgress: (state: PipelineState) => void,
 ): Promise<{ markdown: string; filename: string }> {
   const steps = makeSteps(data);
   const update = (id: string, status: PipelineStep['status'], detail?: string) => {
@@ -43,19 +43,35 @@ export async function runVideoPipeline(
   };
 
   // 步骤 1: 提取（由适配器完成，这里直接传入了 data）
-  update('extract', 'done');
+  const csDiag = (data.metadata._diag as string) || '';
+  update('extract', 'done', csDiag.slice(0, 200));
   update('download', 'running');
 
   // 步骤 2: 下载音频 + 提取
+  // mediaUrls 从后往前试（音频 URL 在末尾优先），declarativeNetRequest 自动注入 Referer
   let audioBlob: Blob | null = null;
-  try {
-    const response = await fetch(data.mediaUrls[0]);
-    if (response.ok) {
-      audioBlob = await response.blob();
+  const diag: string[] = [];
+  for (let i = data.mediaUrls.length - 1; i >= 0; i--) {
+    const url = data.mediaUrls[i];
+    if (!url) { diag.push(`[${i}] skip: empty`); continue; }
+    // 截取 URL 前 80 字符用于诊断
+    const shortUrl = url.slice(0, 80) + (url.length > 80 ? '...' : '');
+    try {
+      const response = await fetch(url);
+      diag.push(`[${i}] ${response.status} ${response.headers.get('content-type') || '?'} ${shortUrl}`);
+      if (response.ok) {
+        audioBlob = await response.blob();
+        diag.push(`[${i}] blob size=${audioBlob?.size || 0}`);
+        if (audioBlob && audioBlob.size > 0) break;
+      }
+    } catch (e) {
+      diag.push(`[${i}] ERR: ${(e as Error).message} ${shortUrl}`);
     }
-    update('download', 'done', audioBlob ? `${(audioBlob.size / 1024 / 1024).toFixed(1)}MB` : '通过URL下载');
-  } catch (e) {
-    update('download', 'error', (e as Error).message);
+  }
+  if (audioBlob && audioBlob.size > 0) {
+    update('download', 'done', `${(audioBlob.size / 1024 / 1024).toFixed(1)}MB`);
+  } else {
+    update('download', 'error', diag.join(' | ') || '所有音频 URL 都不可用');
   }
 
   // 步骤 3: 转录
@@ -72,16 +88,24 @@ export async function runVideoPipeline(
     transcript = '*音频转录失败*';
   }
 
-  // 步骤 4: 总结
-  update('summarize', 'running', 'DeepSeek');
-  let summary = '';
-  try {
-    const content = transcript || data.description || data.title;
-    summary = await summarize(content, data.title);
-    update('summarize', 'done');
-  } catch (e) {
-    update('summarize', 'error', (e as Error).message);
-    summary = '*内容总结不可用*';
+  // 步骤 4: 智能纠错与格式化
+  update('format', 'running', 'DeepSeek');
+  let formattedTranscript = transcript;
+  if (transcript && transcript !== '*音频转录失败*') {
+    try {
+      formattedTranscript = await formatTranscript(
+        transcript,
+        data.title,
+        data.platform,
+        data.url,
+      );
+      update('format', 'done', `${formattedTranscript.length}字`);
+    } catch (e) {
+      update('format', 'error', (e as Error).message);
+      // 纠错失败时使用原始转录文本
+    }
+  } else {
+    update('format', 'done', '跳过（无转录内容）');
   }
 
   // 步骤 5: 评论（适配器中已抓取）
@@ -92,8 +116,7 @@ export async function runVideoPipeline(
   const settings = await loadSettings();
   const markdown = generateVideoMarkdown(
     data,
-    transcript,
-    summary,
+    formattedTranscript,
     config.commentSort || settings.defaultCommentSort,
     config.commentCount || settings.defaultCommentCount
   );

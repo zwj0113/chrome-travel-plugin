@@ -237,8 +237,8 @@ async function loadIdleState() {
   bindIdleEvents();
 
   // 检查 API Key
-  const { siliflowApiKey, deepseekApiKey } = await chrome.storage.local.get(['siliflowApiKey', 'deepseekApiKey']) as { siliflowApiKey?: string; deepseekApiKey?: string };
-  if (!deepseekApiKey) {
+  const { settings } = await chrome.storage.local.get('settings') as { settings?: { siliflowApiKey?: string; deepseekApiKey?: string } };
+  if (!settings?.deepseekApiKey && !settings?.siliflowApiKey) {
     showToast('⚠️ 请先配置 API Key（<a href="#" id="go-options">前往设置</a>）');
     document.getElementById('go-options')?.addEventListener('click', (e) => {
       e.preventDefault();
