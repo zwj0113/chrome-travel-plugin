@@ -31,6 +31,7 @@ export async function describeImage(imageUrl: string): Promise<string> {
 
   // 先下载图片并转 base64，避免防盗链导致 DeepSeek 无法访问
   let dataUrl = imageUrl;
+  const imgShort = imageUrl.slice(0, 80);
   try {
     const imgResp = await fetch(imageUrl, {
       headers: { Referer: 'https://www.xiaohongshu.com/' },
@@ -38,12 +39,22 @@ export async function describeImage(imageUrl: string): Promise<string> {
     if (imgResp.ok) {
       const blob = await imgResp.blob();
       const buffer = await blob.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+      const bytes = new Uint8Array(buffer);
+      // 分块转换 base64，避免大图片导致 "Maximum call stack size exceeded"
+      let binary = '';
+      const CHUNK = 8192;
+      for (let i = 0; i < bytes.length; i += CHUNK) {
+        binary += String.fromCharCode(...bytes.slice(i, i + CHUNK));
+      }
+      const base64 = btoa(binary);
       const mime = blob.type || 'image/jpeg';
       dataUrl = `data:${mime};base64,${base64}`;
+      console.log(`[travel-assistant] describeImage: converted ${bytes.length}B image to base64 (${base64.length} chars)`);
+    } else {
+      console.warn(`[travel-assistant] describeImage: download failed, status=${imgResp.status}, url=${imgShort}`);
     }
-  } catch {
-    // 下载失败则尝试直接用原 URL
+  } catch (e) {
+    console.warn(`[travel-assistant] describeImage: download error: ${(e as Error).message}, url=${imgShort}`);
   }
 
   const res = await fetch(DEEPSEEK_CHAT_URL, {
