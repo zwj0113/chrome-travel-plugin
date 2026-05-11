@@ -22,15 +22,12 @@ describe('Markdown Generator', () => {
   describe('generateVideoMarkdown', () => {
     it('generates complete markdown for video content', () => {
       const transcript = '大家好，今天给大家分享大阪5日游攻略。第一天我们到达关西机场...';
-      const summary = '本视频介绍了大阪5日游的完整路线规划。';
 
-      const md = generateVideoMarkdown(videoAdapterOutput, transcript, summary, 'hot', 50);
+      const md = generateVideoMarkdown(videoAdapterOutput, transcript, 'hot', 50);
 
       expect(md).toContain('# 大阪5日游攻略');
       expect(md).toContain('📌 来源：B站');
       expect(md).toContain('作者：旅行达人');
-      expect(md).toContain('## 📝 内容总结');
-      expect(md).toContain(summary);
       expect(md).toContain('## 🎬 转录文本');
       expect(md).toContain(transcript);
       expect(md).toContain('## 💬 评论');
@@ -42,7 +39,7 @@ describe('Markdown Generator', () => {
     });
 
     it('includes metadata when available', () => {
-      const md = generateVideoMarkdown(videoAdapterOutput, 'test', 'sum', 'hot', 50);
+      const md = generateVideoMarkdown(videoAdapterOutput, 'test', 'hot', 50);
       expect(md).toContain('📊 播放');
       expect(md).toContain('123000');
       expect(md).toContain('8456');
@@ -65,16 +62,14 @@ describe('Markdown Generator', () => {
 
     it('generates complete markdown for note content', () => {
       const imageDescriptions = ['第一张图：岚山竹林中的樱花步道', '第二张图：清水寺俯瞰樱花全景'];
-      const summary = '本文推荐了京都5个最佳赏樱地点。';
 
-      const md = generateNoteMarkdown(noteAdapterOutput, imageDescriptions, summary, 'hot', 20);
+      const md = generateNoteMarkdown(noteAdapterOutput, imageDescriptions, 'hot', 20);
 
       expect(md).toContain('# 京都赏樱5大绝美地点');
       expect(md).toContain('📌 来源：小红书');
       expect(md).toContain('作者：樱花酱');
       expect(md).toContain('❤️ 点赞');
-      expect(md).toContain('## 📝 内容总结');
-      expect(md).toContain(summary);
+      expect(md).not.toContain('## 📝 内容总结');
       expect(md).toContain('## 🖼️ 图片解读');
       expect(md).toContain('### 图1');
       expect(md).toContain('岚山竹林中的樱花步道');

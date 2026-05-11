@@ -87,7 +87,6 @@ export function generateVideoMarkdown(
 export function generateNoteMarkdown(
   data: AdapterOutput,
   imageDescriptions: string[],
-  summary: string,
   commentSort: string,
   commentCount: number
 ): string {
@@ -101,12 +100,6 @@ export function generateNoteMarkdown(
     `# ${data.title}`,
     '',
     formatMetadata(data),
-    '',
-    '---',
-    '',
-    '## 📝 内容总结',
-    '',
-    summary,
     '',
     '---',
     '',

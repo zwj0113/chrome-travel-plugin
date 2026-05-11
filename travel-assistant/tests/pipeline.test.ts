@@ -3,13 +3,16 @@ import type { AdapterOutput, PipelineStep } from '../lib/types';
 
 // Mock 外部依赖
 const mockTranscribe = vi.fn();
-const mockSummarize = vi.fn();
+const mockFormatTranscript = vi.fn();
 const mockGenerateVideoMarkdown = vi.fn();
-const mockProcessAudio = vi.fn();
+
+// Mock global fetch for audio download step
+const mockFetch = vi.fn();
+vi.stubGlobal('fetch', mockFetch);
 
 vi.mock('../lib/ai-service', () => ({
   transcribeAudio: (...args: any[]) => mockTranscribe(...args),
-  summarize: (...args: any[]) => mockSummarize(...args),
+  formatTranscript: (...args: any[]) => mockFormatTranscript(...args),
 }));
 
 vi.mock('../lib/markdown-generator', () => ({
@@ -41,9 +44,14 @@ describe('Video Pipeline', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockTranscribe.mockResolvedValue({ text: '转录文本' });
-    mockSummarize.mockResolvedValue('视频总结内容');
+    mockFormatTranscript.mockResolvedValue('格式化后的转录文本');
     mockGenerateVideoMarkdown.mockReturnValue('# Test Video\n\n## Content');
-    mockProcessAudio.mockResolvedValue(new ArrayBuffer(0));
+    // 模拟音频下载成功
+    mockFetch.mockResolvedValue({
+      ok: true,
+      blob: () => Promise.resolve(new Blob(['fake-audio'], { type: 'audio/mp4' })),
+      headers: new Map([['content-type', 'audio/mp4']]),
+    });
   });
 
   it('runs through all steps and returns markdown', async () => {
@@ -80,23 +88,6 @@ describe('Video Pipeline', () => {
     const result = await runVideoPipeline(data, config, onProgress);
 
     // 应该仍然返回 markdown，但转录内容标记为失败
-    expect(result.markdown).toBeDefined();
-    expect(mockSummarize).toHaveBeenCalled();
-  });
-
-  it('skips summary when summarize fails', async () => {
-    mockSummarize.mockRejectedValue(new Error('Summarize failed'));
-
-    const onProgress = vi.fn();
-    const config: ExtractConfig = {
-      commentCount: 20,
-      commentSort: 'hot',
-      downloadVideo: false,
-    };
-
-    const data = makeAdapterOutput();
-    const result = await runVideoPipeline(data, config, onProgress);
-
     expect(result.markdown).toBeDefined();
   });
 });

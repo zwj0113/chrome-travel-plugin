@@ -29,6 +29,23 @@ export async function describeImage(imageUrl: string): Promise<string> {
   const apiKey = await getApiKey('deepseek');
   if (!apiKey) throw new Error('缺少 DeepSeek API Key');
 
+  // 先下载图片并转 base64，避免防盗链导致 DeepSeek 无法访问
+  let dataUrl = imageUrl;
+  try {
+    const imgResp = await fetch(imageUrl, {
+      headers: { Referer: 'https://www.xiaohongshu.com/' },
+    });
+    if (imgResp.ok) {
+      const blob = await imgResp.blob();
+      const buffer = await blob.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+      const mime = blob.type || 'image/jpeg';
+      dataUrl = `data:${mime};base64,${base64}`;
+    }
+  } catch {
+    // 下载失败则尝试直接用原 URL
+  }
+
   const res = await fetch(DEEPSEEK_CHAT_URL, {
     method: 'POST',
     headers: {
@@ -42,7 +59,7 @@ export async function describeImage(imageUrl: string): Promise<string> {
           role: 'user',
           content: [
             { type: 'text', text: '请详细描述这张图片的内容，包括场景、人物、物品、文字等。用中文回答。' },
-            { type: 'image_url', image_url: { url: imageUrl } },
+            { type: 'image_url', image_url: { url: dataUrl } },
           ],
         },
       ],

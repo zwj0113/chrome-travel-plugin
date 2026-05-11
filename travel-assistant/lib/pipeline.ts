@@ -1,5 +1,5 @@
 import type { AdapterOutput, ExtractConfig, PipelineState, PipelineStep } from './types';
-import { transcribeAudio, formatTranscript, summarize } from './ai-service';
+import { transcribeAudio, formatTranscript } from './ai-service';
 import { generateVideoMarkdown, generateNoteMarkdown } from './markdown-generator';
 import { loadSettings } from './config-manager';
 
@@ -17,7 +17,6 @@ function makeSteps(data: AdapterOutput): PipelineStep[] {
   return [
     { id: 'extract', label: '提取笔记信息', status: 'pending' },
     { id: 'images', label: '图片理解', status: 'pending' },
-    { id: 'summarize', label: '内容总结', status: 'pending' },
     { id: 'comments', label: '抓取评论', status: 'pending' },
     { id: 'generate', label: '生成 Markdown', status: 'pending' },
   ];
@@ -158,27 +157,15 @@ export async function runNotePipeline(
   }
   update('images', 'done', `${imageDescs.length}张`);
 
-  // 步骤 3: 总结
-  update('summarize', 'running', 'DeepSeek');
-  let summary = '';
-  try {
-    summary = await summarize(data.rawText || data.title, data.title);
-    update('summarize', 'done');
-  } catch (e) {
-    update('summarize', 'error');
-    summary = '*内容总结不可用*';
-  }
-
-  // 步骤 4: 评论
+  // 步骤 3: 评论
   update('comments', 'done', `${data.comments.length}条`);
 
-  // 步骤 5: 生成
+  // 步骤 4: 生成
   update('generate', 'running');
   const settings = await loadSettings();
   const markdown = generateNoteMarkdown(
     data,
     imageDescs,
-    summary,
     config.commentSort || settings.defaultCommentSort,
     config.commentCount || settings.defaultCommentCount
   );

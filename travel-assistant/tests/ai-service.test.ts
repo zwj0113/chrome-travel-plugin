@@ -69,6 +69,12 @@ describe('AI Service', () => {
   describe('describeImage', () => {
     it('calls DeepSeek API with image URL', async () => {
       mockStorage.settings = { deepseekApiKey: 'sk-ds' };
+      // 第一次 fetch: 下载图片并转 base64
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        blob: () => Promise.resolve(new Blob(['fake-image-data'], { type: 'image/jpeg' })),
+      });
+      // 第二次 fetch: DeepSeek API
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({
@@ -92,6 +98,12 @@ describe('AI Service', () => {
 
     it('throws with status code on API error', async () => {
       mockStorage.settings = { deepseekApiKey: 'sk-ds' };
+      // 第一次 fetch: 下载图片成功
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        blob: () => Promise.resolve(new Blob(['fake-image-data'], { type: 'image/jpeg' })),
+      });
+      // 第二次 fetch: DeepSeek API 错误
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 500,
@@ -102,6 +114,12 @@ describe('AI Service', () => {
 
     it('throws on malformed response', async () => {
       mockStorage.settings = { deepseekApiKey: 'sk-ds' };
+      // 第一次 fetch: 下载图片成功
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        blob: () => Promise.resolve(new Blob(['fake-image-data'], { type: 'image/jpeg' })),
+      });
+      // 第二次 fetch: DeepSeek 返回异常格式
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ choices: [] }),
