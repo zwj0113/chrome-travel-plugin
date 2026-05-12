@@ -188,12 +188,8 @@ chrome.runtime.onMessage.addListener((msg) => {
     bindCompleteEvents(markdown, msg.filename);
     // 保存历史
     saveHistory(metadata);
-    // 日志静默保存到默认下载目录
-    if (log) {
-      const logUrl = URL.createObjectURL(new Blob([log], { type: 'text/plain' }));
-      const logFilename = msg.filename.replace(/\.md$/i, '.log');
-      chrome.downloads.download({ url: logUrl, filename: logFilename, saveAs: false });
-    }
+    // 运行日志写入后台存储（供排查使用）
+    if (log) saveLog(metadata?.title || '', log);
   }
 });
 
@@ -221,6 +217,14 @@ function bindCompleteEvents(markdown: string, filename: string) {
     await navigator.clipboard.writeText(markdown);
     showToast('已复制到剪贴板');
   });
+}
+
+interface StoredLog { title: string; content: string; time: number; }
+
+async function saveLog(title: string, content: string) {
+  const { pipelineLogs = [] } = await chrome.storage.local.get('pipelineLogs') as { pipelineLogs?: StoredLog[] };
+  pipelineLogs.unshift({ title, content, time: Date.now() });
+  await chrome.storage.local.set({ pipelineLogs: pipelineLogs.slice(0, 10) });
 }
 
 async function saveHistory(metadata: any) {
