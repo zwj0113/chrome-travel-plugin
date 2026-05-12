@@ -8,6 +8,7 @@ async function load() {
 
   (document.getElementById('siliflow-key') as HTMLInputElement).value = settings.siliflowApiKey;
   (document.getElementById('deepseek-key') as HTMLInputElement).value = settings.deepseekApiKey;
+  (document.getElementById('kimi-key') as HTMLInputElement).value = settings.kimiApiKey;
   (document.getElementById('default-comment-count') as HTMLSelectElement).value = String(settings.defaultCommentCount);
   (document.getElementById('default-comment-sort') as HTMLSelectElement).value = settings.defaultCommentSort;
   (document.getElementById('language') as HTMLSelectElement).value = settings.language;
@@ -33,11 +34,12 @@ async function loadHistory() {
 document.getElementById('btn-save')?.addEventListener('click', async () => {
   const siliflowApiKey = (document.getElementById('siliflow-key') as HTMLInputElement).value.trim();
   const deepseekApiKey = (document.getElementById('deepseek-key') as HTMLInputElement).value.trim();
+  const kimiApiKey = (document.getElementById('kimi-key') as HTMLInputElement).value.trim();
   const defaultCommentCount = parseInt((document.getElementById('default-comment-count') as HTMLSelectElement).value) as UserSettings['defaultCommentCount'];
   const defaultCommentSort = (document.getElementById('default-comment-sort') as HTMLSelectElement).value as UserSettings['defaultCommentSort'];
   const language = (document.getElementById('language') as HTMLSelectElement).value as UserSettings['language'];
 
-  await saveSettings({ siliflowApiKey, deepseekApiKey, defaultCommentCount, defaultCommentSort, language });
+  await saveSettings({ siliflowApiKey, deepseekApiKey, kimiApiKey, defaultCommentCount, defaultCommentSort, language });
 
   const status = document.getElementById('save-status')!;
   status.textContent = '设置已保存 ✓';
@@ -78,6 +80,30 @@ document.getElementById('btn-test-deepseek')?.addEventListener('click', async ()
   status.className = 'status-text info';
   try {
     const res = await fetch('https://api.deepseek.com/v1/models', {
+      headers: { Authorization: `Bearer ${key}` },
+    });
+    if (res.ok) {
+      status.textContent = '连接成功 ✓';
+      status.className = 'status-text success';
+    } else {
+      status.textContent = `错误: ${res.status}`;
+      status.className = 'status-text error';
+    }
+  } catch {
+    status.textContent = '网络错误';
+    status.className = 'status-text error';
+  }
+});
+
+document.getElementById('btn-test-kimi')?.addEventListener('click', async () => {
+  const key = (document.getElementById('kimi-key') as HTMLInputElement).value.trim();
+  const status = document.getElementById('kimi-status')!;
+  if (!key) { status.textContent = '请先输入 API Key'; status.className = 'status-text error'; return; }
+
+  status.textContent = '测试中...';
+  status.className = 'status-text info';
+  try {
+    const res = await fetch('https://api.moonshot.cn/v1/models', {
       headers: { Authorization: `Bearer ${key}` },
     });
     if (res.ok) {

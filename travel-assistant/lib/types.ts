@@ -57,6 +57,7 @@ export interface ExtractConfig {
 export interface UserSettings {
   siliflowApiKey: string;
   deepseekApiKey: string;
+  kimiApiKey: string;
   defaultCommentCount: 20 | 50 | 100 | 0;
   defaultCommentSort: 'hot' | 'time';
   language: 'zh' | 'en' | 'auto';

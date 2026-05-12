@@ -3,6 +3,7 @@ import type { UserSettings } from './types';
 export const DEFAULT_SETTINGS: UserSettings = {
   siliflowApiKey: '',
   deepseekApiKey: '',
+  kimiApiKey: '',
   defaultCommentCount: 50,
   defaultCommentSort: 'hot',
   language: 'zh',
@@ -38,15 +39,16 @@ export function saveSettings(partial: Partial<UserSettings>): Promise<void> {
   });
 }
 
-const API_KEY_MAP: Record<'siliflow' | 'deepseek', keyof Pick<UserSettings, 'siliflowApiKey' | 'deepseekApiKey'>> = {
+const API_KEY_MAP: Record<'siliflow' | 'deepseek' | 'kimi', keyof Pick<UserSettings, 'siliflowApiKey' | 'deepseekApiKey' | 'kimiApiKey'>> = {
   siliflow: 'siliflowApiKey',
   deepseek: 'deepseekApiKey',
+  kimi: 'kimiApiKey',
 };
 
-export function getApiKey(service: 'siliflow' | 'deepseek'): Promise<string> {
+export function getApiKey(service: 'siliflow' | 'deepseek' | 'kimi'): Promise<string> {
   return loadSettings().then(settings => settings[API_KEY_MAP[service]]);
 }
 
-export function setApiKey(service: 'siliflow' | 'deepseek', value: string): Promise<void> {
+export function setApiKey(service: 'siliflow' | 'deepseek' | 'kimi', value: string): Promise<void> {
   return saveSettings({ [API_KEY_MAP[service]]: value } as Partial<UserSettings>);
 }

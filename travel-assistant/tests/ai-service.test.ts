@@ -67,14 +67,14 @@ describe('AI Service', () => {
   });
 
   describe('describeImage', () => {
-    it('calls DeepSeek API with image URL', async () => {
-      mockStorage.settings = { deepseekApiKey: 'sk-ds' };
+    it('calls Kimi API with image URL', async () => {
+      mockStorage.settings = { kimiApiKey: 'sk-kimi' };
       // 第一次 fetch: 下载图片并转 base64
       mockFetch.mockResolvedValueOnce({
         ok: true,
         blob: () => Promise.resolve(new Blob(['fake-image-data'], { type: 'image/jpeg' })),
       });
-      // 第二次 fetch: DeepSeek API
+      // 第二次 fetch: Kimi API
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({
@@ -85,25 +85,29 @@ describe('AI Service', () => {
       const result = await describeImage('https://example.com/img.jpg');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://api.deepseek.com/v1/chat/completions',
+        'https://api.moonshot.cn/v1/chat/completions',
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
-            Authorization: 'Bearer sk-ds',
+            Authorization: 'Bearer sk-kimi',
           }),
         })
       );
       expect(result).toBe('这是一张樱花照片');
     });
 
+    it('throws when API key is missing', async () => {
+      await expect(describeImage('https://img.jpg')).rejects.toThrow('Kimi API Key');
+    });
+
     it('throws with status code on API error', async () => {
-      mockStorage.settings = { deepseekApiKey: 'sk-ds' };
+      mockStorage.settings = { kimiApiKey: 'sk-kimi' };
       // 第一次 fetch: 下载图片成功
       mockFetch.mockResolvedValueOnce({
         ok: true,
         blob: () => Promise.resolve(new Blob(['fake-image-data'], { type: 'image/jpeg' })),
       });
-      // 第二次 fetch: DeepSeek API 错误
+      // 第二次 fetch: Kimi API 错误
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 500,
@@ -113,13 +117,13 @@ describe('AI Service', () => {
     });
 
     it('throws on malformed response', async () => {
-      mockStorage.settings = { deepseekApiKey: 'sk-ds' };
+      mockStorage.settings = { kimiApiKey: 'sk-kimi' };
       // 第一次 fetch: 下载图片成功
       mockFetch.mockResolvedValueOnce({
         ok: true,
         blob: () => Promise.resolve(new Blob(['fake-image-data'], { type: 'image/jpeg' })),
       });
-      // 第二次 fetch: DeepSeek 返回异常格式
+      // 第二次 fetch: Kimi 返回异常格式
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ choices: [] }),

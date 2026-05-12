@@ -2,6 +2,7 @@ import { getApiKey } from './config-manager';
 
 const SILICONFLOW_ASR_URL = 'https://api.siliconflow.cn/v1/audio/transcriptions';
 const DEEPSEEK_CHAT_URL = 'https://api.deepseek.com/v1/chat/completions';
+const KIMI_CHAT_URL = 'https://api.moonshot.cn/v1/chat/completions';
 
 export async function transcribeAudio(audioBlob: Blob): Promise<{ text: string }> {
   const apiKey = await getApiKey('siliflow');
@@ -26,8 +27,8 @@ export async function transcribeAudio(audioBlob: Blob): Promise<{ text: string }
 }
 
 export async function describeImage(imageUrl: string): Promise<string> {
-  const apiKey = await getApiKey('deepseek');
-  if (!apiKey) throw new Error('缺少 DeepSeek API Key');
+  const apiKey = await getApiKey('kimi');
+  if (!apiKey) throw new Error('缺少 Kimi API Key');
 
   // 如果还不是 data URL，先下载图片并转 base64（绕过防盗链）
   let dataUrl = imageUrl;
@@ -41,7 +42,6 @@ export async function describeImage(imageUrl: string): Promise<string> {
         const blob = await imgResp.blob();
         const buffer = await blob.arrayBuffer();
         const bytes = new Uint8Array(buffer);
-        // 分块转换 base64，避免大图片导致 "Maximum call stack size exceeded"
         let binary = '';
         const CHUNK = 8192;
         for (let i = 0; i < bytes.length; i += CHUNK) {
@@ -58,14 +58,14 @@ export async function describeImage(imageUrl: string): Promise<string> {
     }
   }
 
-  const res = await fetch(DEEPSEEK_CHAT_URL, {
+  const res = await fetch(KIMI_CHAT_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'deepseek-v4-pro',
+      model: 'kimi-k2.6',
       messages: [
         {
           role: 'user',
@@ -81,12 +81,12 @@ export async function describeImage(imageUrl: string): Promise<string> {
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`DeepSeek 图片理解错误 (${res.status}): ${errText}`);
+    throw new Error(`Kimi 图片理解错误 (${res.status}): ${errText}`);
   }
   const data = await res.json();
   const content = data?.choices?.[0]?.message?.content;
   if (!content) {
-    throw new Error(`DeepSeek 图片理解返回了意外的响应格式`);
+    throw new Error(`Kimi 图片理解返回了意外的响应格式`);
   }
   return content;
 }

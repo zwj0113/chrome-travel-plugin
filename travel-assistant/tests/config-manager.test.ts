@@ -98,6 +98,12 @@ describe('config-manager', () => {
       const settings = mockStorage.settings as UserSettings;
       expect(settings.deepseekApiKey).toBe('sk-ds-456');
     });
+
+    it('stores Kimi API key', async () => {
+      await setApiKey('kimi', 'sk-kimi-789');
+      const settings = mockStorage.settings as UserSettings;
+      expect(settings.kimiApiKey).toBe('sk-kimi-789');
+    });
   });
 
   describe('error handling', () => {
