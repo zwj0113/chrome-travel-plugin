@@ -185,9 +185,15 @@ chrome.runtime.onMessage.addListener((msg) => {
     isExtracting = false;
     const { markdown, metadata, log } = msg;
     app.innerHTML = renderCompleteState(metadata?.title || '', metadata?.platform || '', markdown.length, metadata?.commentCount || 0, markdown);
-    bindCompleteEvents(markdown, msg.filename, log);
+    bindCompleteEvents(markdown, msg.filename);
     // 保存历史
     saveHistory(metadata);
+    // 日志静默保存到默认下载目录
+    if (log) {
+      const logUrl = URL.createObjectURL(new Blob([log], { type: 'text/plain' }));
+      const logFilename = msg.filename.replace(/\.md$/i, '.log');
+      chrome.downloads.download({ url: logUrl, filename: logFilename, saveAs: false });
+    }
   }
 });
 
@@ -201,22 +207,14 @@ function bindProcessingEvents() {
 
 let _lastMarkdown = '';
 let _lastFilename = '';
-let _lastLog = '';
 
-function bindCompleteEvents(markdown: string, filename: string, log?: string) {
+function bindCompleteEvents(markdown: string, filename: string) {
   _lastMarkdown = markdown;
   _lastFilename = filename;
-  _lastLog = log || '';
 
   document.getElementById('btn-download')?.addEventListener('click', () => {
     const url = URL.createObjectURL(new Blob([markdown], { type: 'text/markdown' }));
     chrome.downloads.download({ url, filename, saveAs: true });
-    // 同时下载日志文件
-    if (_lastLog) {
-      const logUrl = URL.createObjectURL(new Blob([_lastLog], { type: 'text/plain' }));
-      const logFilename = filename.replace(/\.md$/i, '.log');
-      chrome.downloads.download({ url: logUrl, filename: logFilename, saveAs: false });
-    }
   });
 
   document.getElementById('btn-copy')?.addEventListener('click', async () => {
