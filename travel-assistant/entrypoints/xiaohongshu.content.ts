@@ -65,40 +65,40 @@ async function extractXhsData(): Promise<AdapterOutput> {
             likeCount = note.interactInfo?.likedCount || 0;
             favoriteCount = note.interactInfo?.collectedCount || 0;
 
-            // 图片 URL — 就地下载转 base64，避免 background 无 cookie 导致防盗链
-            // 同时按 base URL 去重：小红书同一图片会产生多个不同尺寸 URL
-            const seenBases = new Set<string>();
-            // 先收集 DOM 中可见图片的 base URL，用于交叉验证
+            // 图片 — 先收集 DOM 中 CDN 特征图片作为"可见图片"基准
             const domBases = new Set<string>();
-            document.querySelectorAll('.swiper-slide img, .note-image img, .image-container img, [class*="slide"] img').forEach((el) => {
+            document.querySelectorAll('img').forEach((el) => {
               const src = (el as HTMLImageElement).src;
-              if (src && !src.includes('avatar')) domBases.add(src.replace(/[?!].*$/, ''));
+              if (!src) return;
+              if (/avatar|data:image\/svg/i.test(src)) return;
+              if (!/xhscdn\.com|sns-webpic/i.test(src)) return;
+              domBases.add(src.replace(/[?!].*$/, ''));
             });
+            console.log('[旅行助手] DOM可见图片 %d 张', domBases.size);
+
+            // 处理 imageList，用 DOM 基准做过滤（DOM 有数据时以 DOM 为准）
+            const seenBases = new Set<string>();
+            let dupCount = 0;
+            let filteredCount = 0;
             if (note.imageList) {
               for (const img of note.imageList) {
                 const imgUrl = img.urlDefault || img.url || img.infoList?.[0]?.url;
                 if (!imgUrl) continue;
                 const base = imgUrl.replace(/[?!].*$/, '');
-                if (seenBases.has(base)) continue;
-                // 有 DOM 参照时，仅保留 DOM 中也存在的图片
-                if (domBases.size > 0 && !domBases.has(base)) continue;
+                if (seenBases.has(base)) { dupCount++; continue; }
+                // 有 DOM 基准时仅保留 DOM 中也存在的图片
+                if (domBases.size > 0 && !domBases.has(base)) { filteredCount++; continue; }
                 seenBases.add(base);
                 try {
                   const dataUrl = await imageUrlToBase64(imgUrl);
                   mediaUrls.push(dataUrl);
                 } catch {
-                  // 转 base64 失败则保留原始 URL
                   mediaUrls.push(imgUrl);
                 }
               }
             }
-            // 无 imageList 时从 DOM 降级
-            if (!mediaUrls.length && domBases.size > 0) {
-              for (const imgEl of document.querySelectorAll('.swiper-slide img, .note-image img, .image-container img, [class*="slide"] img')) {
-                const src = (imgEl as HTMLImageElement).src;
-                if (src && !src.includes('avatar')) mediaUrls.push(src);
-              }
-            }
+            console.log('[旅行助手] imageList=%d, 去重=%d, DOM过滤=%d, 最终=%d',
+              note.imageList?.length || 0, dupCount, filteredCount, mediaUrls.length);
 
             // 评论
             const commentList = noteId ? (state?.note?.noteCommentMap?.[noteId]?.comments || []) : [];
@@ -125,13 +125,19 @@ async function extractXhsData(): Promise<AdapterOutput> {
     // 降级到 DOM 提取
   }
 
-  // DOM 降级提取图片
+  // DOM 降级：INITIAL_STATE 失败时直接从 DOM 提取
   if (!mediaUrls.length) {
-    const imgEls = document.querySelectorAll('.swiper-slide img, .note-image img, .image-container img');
-    imgEls.forEach((img) => {
+    const seen = new Set<string>();
+    document.querySelectorAll('img').forEach((img) => {
       const src = (img as HTMLImageElement).src;
-      if (src && !src.includes('avatar')) mediaUrls.push(src);
+      if (!src || /avatar|data:image\/svg/i.test(src)) return;
+      if (!/xhscdn\.com|sns-webpic/i.test(src)) return;
+      const base = src.replace(/[?!].*$/, '');
+      if (seen.has(base)) return;
+      seen.add(base);
+      mediaUrls.push(src);
     });
+    console.log('[旅行助手] DOM降级: %d 张图片', mediaUrls.length);
   }
 
   // DOM 降级提取文本
