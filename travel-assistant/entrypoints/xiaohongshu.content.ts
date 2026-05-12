@@ -66,17 +66,23 @@ async function extractXhsData(): Promise<AdapterOutput> {
             favoriteCount = note.interactInfo?.collectedCount || 0;
 
             // 图片 URL — 就地下载转 base64，避免 background 无 cookie 导致防盗链
-            // 同时按图片 ID 去重：小红书同一图片会产生多个不同尺寸 URL
-            const seenIds = new Set<string>();
+            // 同时按 base URL 去重：小红书同一图片会产生多个不同尺寸 URL
+            const seenBases = new Set<string>();
+            // 先收集 DOM 中可见图片的 base URL，用于交叉验证
+            const domBases = new Set<string>();
+            document.querySelectorAll('.swiper-slide img, .note-image img, .image-container img, [class*="slide"] img').forEach((el) => {
+              const src = (el as HTMLImageElement).src;
+              if (src && !src.includes('avatar')) domBases.add(src.replace(/[?!].*$/, ''));
+            });
             if (note.imageList) {
               for (const img of note.imageList) {
                 const imgUrl = img.urlDefault || img.url || img.infoList?.[0]?.url;
                 if (!imgUrl) continue;
-                // 提取图片唯一 ID（! 之前的路径末段）
-                const idMatch = imgUrl.match(/\/([a-z0-9]+)(?:!|$)/i) || imgUrl.match(/\/([a-z0-9]{20,})\?/i);
-                const imgId = idMatch?.[1] || imgUrl;
-                if (seenIds.has(imgId)) continue;
-                seenIds.add(imgId);
+                const base = imgUrl.replace(/[?!].*$/, '');
+                if (seenBases.has(base)) continue;
+                // 有 DOM 参照时，仅保留 DOM 中也存在的图片
+                if (domBases.size > 0 && !domBases.has(base)) continue;
+                seenBases.add(base);
                 try {
                   const dataUrl = await imageUrlToBase64(imgUrl);
                   mediaUrls.push(dataUrl);
@@ -84,6 +90,13 @@ async function extractXhsData(): Promise<AdapterOutput> {
                   // 转 base64 失败则保留原始 URL
                   mediaUrls.push(imgUrl);
                 }
+              }
+            }
+            // 无 imageList 时从 DOM 降级
+            if (!mediaUrls.length && domBases.size > 0) {
+              for (const imgEl of document.querySelectorAll('.swiper-slide img, .note-image img, .image-container img, [class*="slide"] img')) {
+                const src = (imgEl as HTMLImageElement).src;
+                if (src && !src.includes('avatar')) mediaUrls.push(src);
               }
             }
 
