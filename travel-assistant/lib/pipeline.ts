@@ -18,7 +18,7 @@ function makeSteps(data: AdapterOutput): PipelineStep[] {
   }
   return [
     { id: 'extract', label: '提取笔记信息', status: 'pending' },
-    { id: 'images', label: '图片理解', status: 'pending' },
+    { id: 'images', label: '图片文字提取', status: 'pending' },
     { id: 'comments', label: '抓取评论', status: 'pending' },
     { id: 'generate', label: '生成 Markdown', status: 'pending' },
   ];
@@ -179,22 +179,29 @@ export async function runNotePipeline(
   log.info('extract', `适配器提取完成: title="${data.title}", author="${data.author}", mediaUrls=${data.mediaUrls.length}个, rawText=${(data.rawText || '').length}字`);
   update('extract', 'done');
 
-  // 步骤 2: 图片理解
-  log.info('images', `开始图片理解, 共 ${data.mediaUrls.length} 张, 模型=kimi-k2.6`);
+  // 步骤 2: 图片文字提取
+  log.info('images', `开始图片文字提取, 共 ${data.mediaUrls.length} 张, 模型=kimi-k2.6`);
   update('images', 'running', `0/${data.mediaUrls.length}`);
   const imageDescs: string[] = [];
+  let skipCount = 0;
   for (let i = 0; i < data.mediaUrls.length; i++) {
     const imgUrl = data.mediaUrls[i];
     const imgLabel = imgUrl.startsWith('data:')
       ? `data:...;base64,${imgUrl.slice(imgUrl.indexOf(';base64,') + 8, imgUrl.indexOf(';base64,') + 28)}... (${(imgUrl.length / 1024).toFixed(0)}KB)`
       : imgUrl.slice(0, 60);
-    log.info('images', `[${i + 1}/${data.mediaUrls.length}] 请求图片理解: ${imgLabel}`);
+    log.info('images', `[${i + 1}/${data.mediaUrls.length}] 提取图片文字: ${imgLabel}`);
     update('images', 'running', `${i + 1}/${data.mediaUrls.length} 识别中...`);
     try {
-      const desc = await describeImage(imgUrl);
-      imageDescs.push(desc);
-      log.info('images', `[${i + 1}/${data.mediaUrls.length}] 识别成功: ${desc.length}字 → "${desc.slice(0, 40)}..."`);
-      update('images', 'running', `${i + 1}/${data.mediaUrls.length} 成功`);
+      const text = await describeImage(imgUrl);
+      if (text === '无文字' || text.trim() === '无文字') {
+        skipCount++;
+        log.info('images', `[${i + 1}/${data.mediaUrls.length}] 无文字，跳过`);
+        update('images', 'running', `${i + 1}/${data.mediaUrls.length} 无文字跳过`);
+      } else {
+        imageDescs.push(text);
+        log.info('images', `[${i + 1}/${data.mediaUrls.length}] 文字提取成功: ${text.length}字 → "${text.slice(0, 40)}..."`);
+        update('images', 'running', `${i + 1}/${data.mediaUrls.length} 成功`);
+      }
     } catch (e) {
       const errMsg = (e as Error).message || String(e);
       log.error('images', `[${i + 1}/${data.mediaUrls.length}] 识别失败: ${errMsg}`);
@@ -203,8 +210,8 @@ export async function runNotePipeline(
     }
   }
   const successCount = imageDescs.filter(d => !d.startsWith('*图片无法识别')).length;
-  log.info('images', `图片理解完成: ${successCount}/${imageDescs.length} 成功`);
-  update('images', 'done', `${successCount}/${imageDescs.length} 张成功`);
+  log.info('images', `图片文字提取完成: ${successCount}张有文字, ${skipCount}张无文字跳过, ${data.mediaUrls.length - successCount - skipCount}张失败`);
+  update('images', 'done', `${successCount}有文字 ${skipCount}跳过`);
 
   // 步骤 3: 评论
   log.info('comments', `评论数据: ${data.comments.length}条`);
@@ -224,7 +231,7 @@ export async function runNotePipeline(
   update('generate', 'done', `${markdown.length}字`);
 
   const filename = `${data.title.replace(/[\\/:*?"<>|]/g, '_')}.md`;
-  log.info('pipeline', `笔记流水线完成: ${filename}, markdown=${markdown.length}字, 图片=${successCount}/${imageDescs.length}`);
+  log.info('pipeline', `笔记流水线完成: ${filename}, markdown=${markdown.length}字, 有文字图片=${successCount}, 跳过=${skipCount}`);
 
   return { markdown, filename, log: log.toString() };
 }

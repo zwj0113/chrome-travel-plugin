@@ -93,8 +93,8 @@ export function generateNoteMarkdown(
   const sortLabel = commentSort === 'hot' ? '按热度' : '按时间';
   const now = new Date().toLocaleString('zh-CN');
   const imagesSection = imageDescriptions.length
-    ? ['## 🖼️ 图片解读', '', ...imageDescriptions.map((desc, i) => `### 图${i + 1}\n${desc}`), '']
-    : ['## 🖼️ 图片解读', '', '*图片未能识别*', ''];
+    ? ['## 🖼️ 图片文字', '', ...imageDescriptions.map((desc, i) => `### 图${i + 1}\n${desc}`), '']
+    : [];
 
   const sections: string[] = [
     `# ${data.title}`,

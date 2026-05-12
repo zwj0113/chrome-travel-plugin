@@ -70,7 +70,7 @@ describe('Markdown Generator', () => {
       expect(md).toContain('作者：樱花酱');
       expect(md).toContain('❤️ 点赞');
       expect(md).not.toContain('## 📝 内容总结');
-      expect(md).toContain('## 🖼️ 图片解读');
+      expect(md).toContain('## 🖼️ 图片文字');
       expect(md).toContain('### 图1');
       expect(md).toContain('岚山竹林中的樱花步道');
       expect(md).toContain('### 图2');

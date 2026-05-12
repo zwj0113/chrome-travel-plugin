@@ -58,6 +58,9 @@ export async function describeImage(imageUrl: string): Promise<string> {
     }
   }
 
+  const dataUrlSize = dataUrl.length;
+  console.log(`[travel-assistant] describeImage: calling Kimi API, imageSize=${(dataUrlSize / 1024).toFixed(0)}KB`);
+
   const res = await fetch(KIMI_CHAT_URL, {
     method: 'POST',
     headers: {
@@ -70,24 +73,33 @@ export async function describeImage(imageUrl: string): Promise<string> {
         {
           role: 'user',
           content: [
-            { type: 'text', text: '请详细描述这张图片的内容，包括场景、人物、物品、文字等。用中文回答。' },
+            { type: 'text', text: '只提取这张图片中的所有文字内容，直接输出文字，不要有任何解释。如果图片中没有文字，只回复"无文字"。' },
             { type: 'image_url', image_url: { url: dataUrl } },
           ],
         },
       ],
-      max_tokens: 1000,
+      max_tokens: 4096,
     }),
   });
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`Kimi 图片理解错误 (${res.status}): ${errText}`);
+    console.error(`[travel-assistant] describeImage: Kimi API error ${res.status}: ${errText.slice(0, 300)}`);
+    throw new Error(`Kimi 图片理解错误 (${res.status}): ${errText.slice(0, 200)}`);
   }
   const data = await res.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) {
-    throw new Error(`Kimi 图片理解返回了意外的响应格式`);
+  const message = data?.choices?.[0]?.message;
+  let content = message?.content;
+  // kimi-k2.6 是推理模型，当 max_tokens 不足时 content 可能为空，回退到 reasoning_content
+  if (!content && message?.reasoning_content) {
+    console.log(`[travel-assistant] describeImage: content empty, falling back to reasoning_content (${message.reasoning_content.length} chars)`);
+    content = message.reasoning_content;
   }
+  if (!content) {
+    console.error('[travel-assistant] describeImage: unexpected response format:', JSON.stringify(data).slice(0, 500));
+    throw new Error('Kimi 图片理解返回了意外的响应格式');
+  }
+  console.log(`[travel-assistant] describeImage: success, outputLen=${content.length}, finishReason=${data?.choices?.[0]?.finish_reason}`);
   return content;
 }
 
