@@ -1,5 +1,5 @@
 import type { AdapterOutput, ExtractConfig, PipelineState, PipelineStep } from './types';
-import { transcribeAudio, formatTranscript } from './ai-service';
+import { transcribeAudio, formatTranscript, describeImage } from './ai-service';
 import { generateVideoMarkdown, generateNoteMarkdown } from './markdown-generator';
 import { loadSettings } from './config-manager';
 
@@ -131,7 +131,6 @@ export async function runNotePipeline(
   config: ExtractConfig,
   onProgress: (state: PipelineState) => void
 ): Promise<{ markdown: string; filename: string }> {
-  const { describeImage } = await import('./ai-service');
   const steps = makeSteps(data);
   const update = (id: string, status: PipelineStep['status'], detail?: string) => {
     const step = steps.find((s) => s.id === id);
@@ -151,8 +150,10 @@ export async function runNotePipeline(
     try {
       const desc = await describeImage(imgUrl);
       imageDescs.push(desc);
-    } catch {
-      imageDescs.push('*图片无法识别*');
+    } catch (e) {
+      const errMsg = (e as Error).message || String(e);
+      console.error(`[travel-assistant] describeImage failed: ${errMsg}`, imgUrl.slice(0, 80));
+      imageDescs.push(`*图片无法识别（${errMsg.slice(0, 60)}）*`);
     }
   }
   update('images', 'done', `${imageDescs.length}张`);

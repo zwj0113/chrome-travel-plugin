@@ -18,6 +18,22 @@ export default defineContentScript({
   },
 });
 
+async function imageUrlToBase64(url: string): Promise<string> {
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`下载图片失败 ${resp.status}`);
+  const blob = await resp.blob();
+  const buffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  // 分块转换，避免大图片导致 "Maximum call stack size exceeded"
+  let binary = '';
+  const CHUNK = 8192;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.slice(i, i + CHUNK));
+  }
+  const base64 = btoa(binary);
+  return `data:${blob.type || 'image/jpeg'};base64,${base64}`;
+}
+
 async function extractXhsData(): Promise<AdapterOutput> {
   const url = window.location.href;
   let title = '小红书笔记';
@@ -49,11 +65,19 @@ async function extractXhsData(): Promise<AdapterOutput> {
             likeCount = note.interactInfo?.likedCount || 0;
             favoriteCount = note.interactInfo?.collectedCount || 0;
 
-            // 图片 URL
+            // 图片 URL — 就地下载转 base64，避免 background 无 cookie 导致防盗链
             if (note.imageList) {
               for (const img of note.imageList) {
                 const imgUrl = img.urlDefault || img.url || img.infoList?.[0]?.url;
-                if (imgUrl) mediaUrls.push(imgUrl);
+                if (imgUrl) {
+                  try {
+                    const dataUrl = await imageUrlToBase64(imgUrl);
+                    mediaUrls.push(dataUrl);
+                  } catch {
+                    // 转 base64 失败则保留原始 URL
+                    mediaUrls.push(imgUrl);
+                  }
+                }
               }
             }
 
