@@ -66,17 +66,23 @@ async function extractXhsData(): Promise<AdapterOutput> {
             favoriteCount = note.interactInfo?.collectedCount || 0;
 
             // 图片 URL — 就地下载转 base64，避免 background 无 cookie 导致防盗链
+            // 同时按图片 ID 去重：小红书同一图片会产生多个不同尺寸 URL
+            const seenIds = new Set<string>();
             if (note.imageList) {
               for (const img of note.imageList) {
                 const imgUrl = img.urlDefault || img.url || img.infoList?.[0]?.url;
-                if (imgUrl) {
-                  try {
-                    const dataUrl = await imageUrlToBase64(imgUrl);
-                    mediaUrls.push(dataUrl);
-                  } catch {
-                    // 转 base64 失败则保留原始 URL
-                    mediaUrls.push(imgUrl);
-                  }
+                if (!imgUrl) continue;
+                // 提取图片唯一 ID（! 之前的路径末段）
+                const idMatch = imgUrl.match(/\/([a-z0-9]+)(?:!|$)/i) || imgUrl.match(/\/([a-z0-9]{20,})\?/i);
+                const imgId = idMatch?.[1] || imgUrl;
+                if (seenIds.has(imgId)) continue;
+                seenIds.add(imgId);
+                try {
+                  const dataUrl = await imageUrlToBase64(imgUrl);
+                  mediaUrls.push(dataUrl);
+                } catch {
+                  // 转 base64 失败则保留原始 URL
+                  mediaUrls.push(imgUrl);
                 }
               }
             }
