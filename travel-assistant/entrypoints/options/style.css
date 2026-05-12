@@ -99,3 +99,55 @@ h1 { font-size: 22px; margin-bottom: 24px; }
 }
 
 .history-item:last-child { border-bottom: none; }
+
+/* 运行日志 */
+.log-item {
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: #fafafa;
+  border-radius: 6px;
+  border: 1px solid #eee;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.log-item:hover { border-color: #7c4dff; }
+.log-item.selected { border-color: #7c4dff; background: #f3edff; }
+.log-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+.log-item-title { font-weight: 600; color: #333; }
+.log-item-time { font-size: 11px; color: #999; }
+.log-item-preview {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #999;
+  font-family: 'Courier New', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 560px;
+}
+.log-detail {
+  margin-top: 8px;
+  padding: 12px;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  border-radius: 4px;
+  max-height: 400px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  display: none;
+}
+.log-detail.open { display: block; }
+.log-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}

@@ -1,7 +1,10 @@
 import { loadSettings, saveSettings } from '../../lib/config-manager';
 import type { UserSettings } from '../../lib/types';
 
+interface StoredLog { title: string; content: string; time: number; }
+
 let settings: UserSettings;
+let logs: StoredLog[] = [];
 
 async function load() {
   settings = await loadSettings();
@@ -14,6 +17,7 @@ async function load() {
   (document.getElementById('language') as HTMLSelectElement).value = settings.language;
 
   await loadHistory();
+  await loadLogs();
 }
 
 async function loadHistory() {
@@ -30,6 +34,66 @@ async function loadHistory() {
     </div>
   `).join('');
 }
+
+async function loadLogs() {
+  const result = await chrome.storage.local.get('pipelineLogs') as { pipelineLogs?: StoredLog[] };
+  logs = result.pipelineLogs || [];
+  renderLogs();
+}
+
+function renderLogs() {
+  const container = document.getElementById('log-list')!;
+  if (!logs.length) {
+    container.innerHTML = '<p style="color:#999;font-size:13px">暂无运行日志</p>';
+    return;
+  }
+  container.innerHTML = logs.map((log, i) => `
+    <div class="log-item" data-index="${i}">
+      <div class="log-item-header">
+        <span class="log-item-title">${escapeHtml(log.title).slice(0, 40)}</span>
+        <span class="log-item-time">${new Date(log.time).toLocaleString('zh-CN')}</span>
+      </div>
+      <div class="log-item-preview">${escapeHtml(getFirstLine(log.content))}</div>
+      <div class="log-detail" id="log-detail-${i}">${escapeHtml(log.content)}</div>
+    </div>
+  `).join('');
+
+  // 点击展开/收起日志详情
+  container.querySelectorAll('.log-item').forEach(item => {
+    item.addEventListener('click', () => {
+      item.classList.toggle('selected');
+      item.querySelector('.log-detail')!.classList.toggle('open');
+    });
+  });
+}
+
+function getFirstLine(content: string): string {
+  const i = content.indexOf('\n');
+  return i > -1 ? content.slice(0, i) : content;
+}
+
+// ========== 日志导出 ==========
+
+document.getElementById('btn-export-log')?.addEventListener('click', () => {
+  const selected = document.querySelectorAll('.log-item.selected');
+  if (!selected.length) {
+    alert('请先点击选择要导出的日志');
+    return;
+  }
+  const indices = Array.from(selected).map(el => parseInt((el as HTMLElement).dataset.index || '0'));
+  const toExport = indices.map(i => logs[i]).filter(Boolean);
+  const text = toExport.map(log =>
+    `# ${log.title}\n# ${new Date(log.time).toLocaleString('zh-CN')}\n\n${log.content}\n\n---\n`
+  ).join('\n');
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+  chrome.downloads.download({ url, filename: `pipeline-logs-${Date.now()}.log`, saveAs: true });
+});
+
+document.getElementById('btn-clear-logs')?.addEventListener('click', async () => {
+  await chrome.storage.local.set({ pipelineLogs: [] });
+  logs = [];
+  renderLogs();
+});
 
 document.getElementById('btn-save')?.addEventListener('click', async () => {
   const siliflowApiKey = (document.getElementById('siliflow-key') as HTMLInputElement).value.trim();
