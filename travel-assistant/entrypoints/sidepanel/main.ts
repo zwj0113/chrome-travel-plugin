@@ -183,9 +183,9 @@ chrome.runtime.onMessage.addListener((msg) => {
   }
   if (msg.type === MSG.EXTRACTION_COMPLETE) {
     isExtracting = false;
-    const { markdown, metadata } = msg;
+    const { markdown, metadata, log } = msg;
     app.innerHTML = renderCompleteState(metadata?.title || '', metadata?.platform || '', markdown.length, metadata?.commentCount || 0, markdown);
-    bindCompleteEvents(markdown, msg.filename);
+    bindCompleteEvents(markdown, msg.filename, log);
     // 保存历史
     saveHistory(metadata);
   }
@@ -201,14 +201,22 @@ function bindProcessingEvents() {
 
 let _lastMarkdown = '';
 let _lastFilename = '';
+let _lastLog = '';
 
-function bindCompleteEvents(markdown: string, filename: string) {
+function bindCompleteEvents(markdown: string, filename: string, log?: string) {
   _lastMarkdown = markdown;
   _lastFilename = filename;
+  _lastLog = log || '';
 
   document.getElementById('btn-download')?.addEventListener('click', () => {
     const url = URL.createObjectURL(new Blob([markdown], { type: 'text/markdown' }));
     chrome.downloads.download({ url, filename, saveAs: true });
+    // 同时下载日志文件
+    if (_lastLog) {
+      const logUrl = URL.createObjectURL(new Blob([_lastLog], { type: 'text/plain' }));
+      const logFilename = filename.replace(/\.md$/i, '.log');
+      chrome.downloads.download({ url: logUrl, filename: logFilename, saveAs: false });
+    }
   });
 
   document.getElementById('btn-copy')?.addEventListener('click', async () => {

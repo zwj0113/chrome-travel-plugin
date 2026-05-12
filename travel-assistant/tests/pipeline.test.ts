@@ -50,7 +50,7 @@ describe('Video Pipeline', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       blob: () => Promise.resolve(new Blob(['fake-audio'], { type: 'audio/mp4' })),
-      headers: new Map([['content-type', 'audio/mp4']]),
+      headers: new Headers({ 'content-type': 'audio/mp4' }),
     });
   });
 
@@ -66,6 +66,8 @@ describe('Video Pipeline', () => {
     const result = await runVideoPipeline(data, config, onProgress);
 
     expect(result.markdown).toContain('# Test Video');
+    expect(result.filename).toBe('Test Video.md');
+    expect(result.log).toContain('[INFO]');
     expect(onProgress).toHaveBeenCalled();
 
     // 验证步骤顺序

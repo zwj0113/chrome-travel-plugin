@@ -127,7 +127,7 @@ export default defineBackground(() => {
       }).catch(() => {});
     };
 
-    let result: { markdown: string; filename: string };
+    let result: { markdown: string; filename: string; log: string };
 
     if (data.type === 'video') {
       result = await runVideoPipeline(data, config, onProgress);
@@ -139,6 +139,7 @@ export default defineBackground(() => {
       type: MSG.EXTRACTION_COMPLETE,
       markdown: result.markdown,
       filename: result.filename,
+      log: result.log,
       metadata: {
         platform: data.platform,
         title: data.title,
