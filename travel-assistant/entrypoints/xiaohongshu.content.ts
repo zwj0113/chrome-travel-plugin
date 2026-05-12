@@ -45,15 +45,24 @@ async function extractXhsData(): Promise<AdapterOutput> {
   const mediaUrls: string[] = [];
   const comments: Comment[] = [];
 
-  // 从页面初始状态提取（参考视频脚本的解析模式）
+  // 从页面初始状态提取（用 brace-counting 解析 JSON，避免正则匹配嵌套括号）
   try {
     const scripts = document.querySelectorAll('script');
     for (const script of scripts) {
       const text = script.textContent || '';
       if (text.includes('window.__INITIAL_STATE__')) {
-        const match = text.match(/window\.__INITIAL_STATE__\s*=\s*({.+?})\s*</s);
-        if (match) {
-          const state = JSON.parse(match[1].replace(/undefined/g, 'null'));
+        const startIdx = text.indexOf('window.__INITIAL_STATE__');
+        const braceIdx = text.indexOf('{', text.indexOf('=', startIdx));
+        if (braceIdx > 0) {
+          // 数括号找匹配的 }
+          let depth = 0;
+          let endIdx = braceIdx;
+          for (let i = braceIdx; i < text.length; i++) {
+            if (text[i] === '{') depth++;
+            else if (text[i] === '}') { depth--; if (depth === 0) { endIdx = i; break; } }
+          }
+          const json = text.slice(braceIdx, endIdx + 1);
+          const state = JSON.parse(json.replace(/undefined/g, 'null'));
           const noteId = url.match(/explore\/([a-zA-Z0-9]+)/)?.[1];
           const note = noteId ? state?.note?.noteDetailMap?.[noteId]?.note : null;
 
@@ -122,21 +131,28 @@ async function extractXhsData(): Promise<AdapterOutput> {
       }
     }
   } catch (e) {
-    // 降级到 DOM 提取
+    console.error('[旅行助手] INITIAL_STATE 解析失败:', e);
   }
 
-  // DOM 降级：INITIAL_STATE 失败时直接从 DOM 提取
+  // DOM 降级：INITIAL_STATE 失败时直接从 DOM 提取并转 base64
   if (!mediaUrls.length) {
     const seen = new Set<string>();
-    document.querySelectorAll('img').forEach((img) => {
+    const domImgs = Array.from(document.querySelectorAll('img')).filter((img) => {
       const src = (img as HTMLImageElement).src;
-      if (!src || /avatar|data:image\/svg/i.test(src)) return;
-      if (!/xhscdn\.com|sns-webpic/i.test(src)) return;
-      const base = src.replace(/[?!].*$/, '');
-      if (seen.has(base)) return;
-      seen.add(base);
-      mediaUrls.push(src);
+      return src && !/avatar|data:image\/svg/i.test(src) && /xhscdn\.com|sns-webpic/i.test(src);
     });
+    for (const img of domImgs) {
+      const src = (img as HTMLImageElement).src;
+      const base = src.replace(/[?!].*$/, '');
+      if (seen.has(base)) continue;
+      seen.add(base);
+      try {
+        const dataUrl = await imageUrlToBase64(src);
+        mediaUrls.push(dataUrl);
+      } catch {
+        mediaUrls.push(src);
+      }
+    }
     console.log('[旅行助手] DOM降级: %d 张图片', mediaUrls.length);
   }
 
