@@ -12,18 +12,26 @@ export async function transcribeAudio(audioBlob: Blob): Promise<{ text: string }
   formData.append('file', audioBlob, 'audio.wav');
   formData.append('model', 'FunAudioLLM/SenseVoiceSmall');
 
+  const audioSizeKB = (audioBlob.size / 1024).toFixed(1);
+  console.log(`[travel-assistant] transcribeAudio REQUEST: url=${SILICONFLOW_ASR_URL}, model=FunAudioLLM/SenseVoiceSmall, audioSize=${audioSizeKB}KB, key=***${apiKey.slice(-4)}`);
+
+  const t0 = Date.now();
   const res = await fetch(SILICONFLOW_ASR_URL, {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}` },
     body: formData,
   });
+  const elapsed = Date.now() - t0;
 
   if (!res.ok) {
     const errText = await res.text();
+    console.error(`[travel-assistant] transcribeAudio RESPONSE: status=${res.status}, elapsed=${elapsed}ms, error=${errText.slice(0, 500)}`);
     throw new Error(`硅基流动 API 错误 (${res.status}): ${errText}`);
   }
 
-  return res.json();
+  const result = await res.json();
+  console.log(`[travel-assistant] transcribeAudio RESPONSE: status=${res.status}, elapsed=${elapsed}ms, body=${JSON.stringify(result).slice(0, 500)}`);
+  return result;
 }
 
 export async function describeImage(imageUrl: string): Promise<string> {
@@ -59,32 +67,35 @@ export async function describeImage(imageUrl: string): Promise<string> {
   }
 
   const dataUrlSize = dataUrl.length;
-  console.log(`[travel-assistant] describeImage: calling Kimi API, imageSize=${(dataUrlSize / 1024).toFixed(0)}KB`);
+  const requestBody = {
+    model: 'kimi-k2.6',
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: '只提取这张图片中的所有文字内容，直接输出文字，不要有任何解释。如果图片中没有文字，只回复"无文字"。' },
+          { type: 'image_url', image_url: { url: dataUrl } },
+        ],
+      },
+    ],
+    max_tokens: 4096,
+  };
+  console.log(`[travel-assistant] describeImage REQUEST: url=${KIMI_CHAT_URL}, model=kimi-k2.6, max_tokens=4096, imageSize=${(dataUrlSize / 1024).toFixed(0)}KB, key=***${apiKey.slice(-4)}`);
 
+  const t0 = Date.now();
   const res = await fetch(KIMI_CHAT_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      model: 'kimi-k2.6',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: '只提取这张图片中的所有文字内容，直接输出文字，不要有任何解释。如果图片中没有文字，只回复"无文字"。' },
-            { type: 'image_url', image_url: { url: dataUrl } },
-          ],
-        },
-      ],
-      max_tokens: 4096,
-    }),
+    body: JSON.stringify(requestBody),
   });
+  const elapsed = Date.now() - t0;
 
   if (!res.ok) {
     const errText = await res.text();
-    console.error(`[travel-assistant] describeImage: Kimi API error ${res.status}: ${errText.slice(0, 300)}`);
+    console.error(`[travel-assistant] describeImage RESPONSE: status=${res.status}, elapsed=${elapsed}ms, error=${errText.slice(0, 500)}`);
     throw new Error(`Kimi 图片理解错误 (${res.status}): ${errText.slice(0, 200)}`);
   }
   const data = await res.json();
@@ -96,10 +107,11 @@ export async function describeImage(imageUrl: string): Promise<string> {
     content = message.reasoning_content;
   }
   if (!content) {
-    console.error('[travel-assistant] describeImage: unexpected response format:', JSON.stringify(data).slice(0, 500));
+    console.error(`[travel-assistant] describeImage RESPONSE: status=${res.status}, elapsed=${elapsed}ms, body=${JSON.stringify(data).slice(0, 500)}`);
     throw new Error('Kimi 图片理解返回了意外的响应格式');
   }
-  console.log(`[travel-assistant] describeImage: success, outputLen=${content.length}, finishReason=${data?.choices?.[0]?.finish_reason}`);
+  const usageStr = data?.usage ? `prompt=${data.usage.prompt_tokens} completion=${data.usage.completion_tokens} total=${data.usage.total_tokens}` : 'N/A';
+  console.log(`[travel-assistant] describeImage RESPONSE: status=${res.status}, elapsed=${elapsed}ms, finishReason=${data?.choices?.[0]?.finish_reason}, contentLen=${content.length}, reasoningLen=${message?.reasoning_content?.length || 0}, usage={${usageStr}}, content="${content.slice(0, 200)}"`);
   return content;
 }
 
@@ -151,8 +163,9 @@ export async function formatTranscript(
     max_tokens: outputTokens,
   });
 
-  console.log('[travel-assistant] formatTranscript request - key=', apiKey ? `***${apiKey.slice(-4)}` : 'EMPTY', 'transcriptLen=', transcript.length, 'maxTokens=', outputTokens);
+  console.log(`[travel-assistant] formatTranscript REQUEST: url=${DEEPSEEK_CHAT_URL}, model=deepseek-v4-pro, max_tokens=${outputTokens}, transcriptLen=${transcript.length}, promptLen=${prompt.length}, key=***${apiKey.slice(-4)}`);
 
+  const t0 = Date.now();
   const res = await fetch(DEEPSEEK_CHAT_URL, {
     method: 'POST',
     headers: {
@@ -161,26 +174,25 @@ export async function formatTranscript(
     },
     body,
   });
-
-  console.log('[travel-assistant] formatTranscript response - status=', res.status, 'ok=', res.ok);
+  const elapsed = Date.now() - t0;
 
   if (!res.ok) {
     const errText = await res.text();
-    console.error('[travel-assistant] formatTranscript error body:', errText.slice(0, 500));
+    console.error(`[travel-assistant] formatTranscript RESPONSE: status=${res.status}, elapsed=${elapsed}ms, error=${errText.slice(0, 500)}`);
     throw new Error(`DeepSeek 纠错格式化错误 (${res.status}): ${errText.slice(0, 200)}`);
   }
   const data = await res.json();
-  console.log('[travel-assistant] formatTranscript response data - hasChoices=', !!data?.choices, 'choicesLen=', data?.choices?.length);
 
   const choice = data?.choices?.[0];
   const finishReason = choice?.finish_reason;
   const result = choice?.message?.content;
-  console.log('[travel-assistant] formatTranscript result - finishReason=', finishReason, 'outputLen=', result?.length || 0);
+  const usageStr = data?.usage ? `prompt=${data.usage.prompt_tokens} completion=${data.usage.completion_tokens} total=${data.usage.total_tokens}` : 'N/A';
 
   if (!result) {
-    console.error('[travel-assistant] formatTranscript unexpected response:', JSON.stringify(data).slice(0, 500));
+    console.error(`[travel-assistant] formatTranscript RESPONSE: status=${res.status}, elapsed=${elapsed}ms, finishReason=${finishReason}, outputLen=0, body=${JSON.stringify(data).slice(0, 500)}`);
     throw new Error('DeepSeek 纠错格式化返回了意外的响应格式');
   }
+  console.log(`[travel-assistant] formatTranscript RESPONSE: status=${res.status}, elapsed=${elapsed}ms, finishReason=${finishReason}, outputLen=${result.length}, usage={${usageStr}}, output="${result.slice(0, 200)}"`);
   return result;
 }
 
@@ -200,6 +212,9 @@ export async function summarize(content: string, context: string): Promise<strin
     max_tokens: 1500,
   });
 
+  console.log(`[travel-assistant] summarize REQUEST: url=${DEEPSEEK_CHAT_URL}, model=deepseek-v4-pro, max_tokens=1500, contentLen=${content.length}, context="${context.slice(0, 100)}", key=***${apiKey.slice(-4)}`);
+
+  const t0 = Date.now();
   const res = await fetch(DEEPSEEK_CHAT_URL, {
     method: 'POST',
     headers: {
@@ -208,15 +223,21 @@ export async function summarize(content: string, context: string): Promise<strin
     },
     body,
   });
+  const elapsed = Date.now() - t0;
 
   if (!res.ok) {
     const errText = await res.text();
+    console.error(`[travel-assistant] summarize RESPONSE: status=${res.status}, elapsed=${elapsed}ms, error=${errText.slice(0, 500)}`);
     throw new Error(`DeepSeek 总结错误 (${res.status}): ${errText.slice(0, 200)}`);
   }
   const data = await res.json();
   const result = data?.choices?.[0]?.message?.content;
+  const usageStr = data?.usage ? `prompt=${data.usage.prompt_tokens} completion=${data.usage.completion_tokens} total=${data.usage.total_tokens}` : 'N/A';
+
   if (!result) {
+    console.error(`[travel-assistant] summarize RESPONSE: status=${res.status}, elapsed=${elapsed}ms, outputLen=0, body=${JSON.stringify(data).slice(0, 500)}`);
     throw new Error('DeepSeek 总结返回了意外的响应格式');
   }
+  console.log(`[travel-assistant] summarize RESPONSE: status=${res.status}, elapsed=${elapsed}ms, finishReason=${data?.choices?.[0]?.finish_reason}, outputLen=${result.length}, usage={${usageStr}}, output="${result.slice(0, 200)}"`);
   return result;
 }

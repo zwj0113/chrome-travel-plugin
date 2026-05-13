@@ -5,7 +5,7 @@ import { loadSettings } from './config-manager';
 import { createLogger } from './logger';
 import type { PipelineLogger } from './logger';
 
-function makeSteps(data: AdapterOutput): PipelineStep[] {
+function makeSteps(data: AdapterOutput, config?: ExtractConfig): PipelineStep[] {
   if (data.type === 'video') {
     return [
       { id: 'extract', label: '提取视频信息', status: 'pending' },
@@ -16,12 +16,18 @@ function makeSteps(data: AdapterOutput): PipelineStep[] {
       { id: 'generate', label: '生成 Markdown', status: 'pending' },
     ];
   }
-  return [
+  const noteSteps: PipelineStep[] = [
     { id: 'extract', label: '提取笔记信息', status: 'pending' },
-    { id: 'images', label: '图片文字提取', status: 'pending' },
+  ];
+  // 图片文字提取 — 仅在开关打开且有图片时展示
+  if (config?.enableImageRecognition !== false) {
+    noteSteps.push({ id: 'images', label: '图片文字提取', status: 'pending' });
+  }
+  noteSteps.push(
     { id: 'comments', label: '抓取评论', status: 'pending' },
     { id: 'generate', label: '生成 Markdown', status: 'pending' },
-  ];
+  );
+  return noteSteps;
 }
 
 function buildState(steps: PipelineStep[], cancelled = false): PipelineState {
@@ -40,7 +46,7 @@ export async function runVideoPipeline(
   onProgress: (state: PipelineState) => void,
 ): Promise<PipelineResult> {
   const log = createLogger();
-  const steps = makeSteps(data);
+  const steps = makeSteps(data, config);
   const update = (id: string, status: PipelineStep['status'], detail?: string) => {
     const step = steps.find((s) => s.id === id);
     if (step) {
@@ -163,7 +169,7 @@ export async function runNotePipeline(
   onProgress: (state: PipelineState) => void
 ): Promise<PipelineResult> {
   const log = createLogger();
-  const steps = makeSteps(data);
+  const steps = makeSteps(data, config);
   const update = (id: string, status: PipelineStep['status'], detail?: string) => {
     const step = steps.find((s) => s.id === id);
     if (step) {
@@ -173,45 +179,48 @@ export async function runNotePipeline(
     onProgress(buildState(steps));
   };
 
-  log.info('pipeline', `开始笔记流水线: title="${data.title}", platform=${data.platform}, type=${data.type}, mediaUrls=${data.mediaUrls.length}个, comments=${data.comments.length}条`);
+  log.info('pipeline', `开始笔记流水线: title="${data.title}", platform=${data.platform}, type=${data.type}, mediaUrls=${data.mediaUrls.length}个, comments=${data.comments.length}条, imageRecognition=${config.enableImageRecognition}`);
 
   // 步骤 1: 提取
   log.info('extract', `适配器提取完成: title="${data.title}", author="${data.author}", mediaUrls=${data.mediaUrls.length}个, rawText=${(data.rawText || '').length}字`);
   update('extract', 'done');
 
-  // 步骤 2: 图片文字提取
-  log.info('images', `开始图片文字提取, 共 ${data.mediaUrls.length} 张, 模型=kimi-k2.6`);
-  update('images', 'running', `0/${data.mediaUrls.length}`);
+  // 步骤 2: 图片文字提取 — 仅在开关打开且有图片时执行
   const imageDescs: string[] = [];
+  let successCount = 0;
   let skipCount = 0;
-  for (let i = 0; i < data.mediaUrls.length; i++) {
-    const imgUrl = data.mediaUrls[i];
-    const imgLabel = imgUrl.startsWith('data:')
-      ? `data:...;base64,${imgUrl.slice(imgUrl.indexOf(';base64,') + 8, imgUrl.indexOf(';base64,') + 28)}... (${(imgUrl.length / 1024).toFixed(0)}KB)`
-      : imgUrl.slice(0, 60);
-    log.info('images', `[${i + 1}/${data.mediaUrls.length}] 提取图片文字: ${imgLabel}`);
-    update('images', 'running', `${i + 1}/${data.mediaUrls.length} 识别中...`);
-    try {
-      const text = await describeImage(imgUrl);
-      if (text === '无文字' || text.trim() === '无文字') {
-        skipCount++;
-        log.info('images', `[${i + 1}/${data.mediaUrls.length}] 无文字，跳过`);
-        update('images', 'running', `${i + 1}/${data.mediaUrls.length} 无文字跳过`);
-      } else {
-        imageDescs.push(text);
-        log.info('images', `[${i + 1}/${data.mediaUrls.length}] 文字提取成功: ${text.length}字 → "${text.slice(0, 40)}..."`);
-        update('images', 'running', `${i + 1}/${data.mediaUrls.length} 成功`);
+  if (config.enableImageRecognition !== false && data.mediaUrls.length > 0) {
+    log.info('images', `开始图片文字提取, 共 ${data.mediaUrls.length} 张, 模型=kimi-k2.6`);
+    update('images', 'running', `0/${data.mediaUrls.length}`);
+    for (let i = 0; i < data.mediaUrls.length; i++) {
+      const imgUrl = data.mediaUrls[i];
+      const imgLabel = imgUrl.startsWith('data:')
+        ? `data:...;base64,${imgUrl.slice(imgUrl.indexOf(';base64,') + 8, imgUrl.indexOf(';base64,') + 28)}... (${(imgUrl.length / 1024).toFixed(0)}KB)`
+        : imgUrl.slice(0, 60);
+      log.info('images', `[${i + 1}/${data.mediaUrls.length}] 提取图片文字: ${imgLabel}`);
+      update('images', 'running', `${i + 1}/${data.mediaUrls.length} 识别中...`);
+      try {
+        const text = await describeImage(imgUrl);
+        if (text === '无文字' || text.trim() === '无文字') {
+          skipCount++;
+          log.info('images', `[${i + 1}/${data.mediaUrls.length}] 无文字，跳过`);
+          update('images', 'running', `${i + 1}/${data.mediaUrls.length} 无文字跳过`);
+        } else {
+          imageDescs.push(text);
+          log.info('images', `[${i + 1}/${data.mediaUrls.length}] 文字提取成功: ${text.length}字 → "${text.slice(0, 40)}..."`);
+          update('images', 'running', `${i + 1}/${data.mediaUrls.length} 成功`);
+        }
+      } catch (e) {
+        const errMsg = (e as Error).message || String(e);
+        log.error('images', `[${i + 1}/${data.mediaUrls.length}] 识别失败: ${errMsg}`);
+        imageDescs.push(`*图片无法识别（${errMsg.slice(0, 60)}）*`);
+        update('images', 'running', `${i + 1}/${data.mediaUrls.length} 失败`);
       }
-    } catch (e) {
-      const errMsg = (e as Error).message || String(e);
-      log.error('images', `[${i + 1}/${data.mediaUrls.length}] 识别失败: ${errMsg}`);
-      imageDescs.push(`*图片无法识别（${errMsg.slice(0, 60)}）*`);
-      update('images', 'running', `${i + 1}/${data.mediaUrls.length} 失败`);
     }
+    successCount = imageDescs.filter(d => !d.startsWith('*图片无法识别')).length;
+    log.info('images', `图片文字提取完成: ${successCount}张有文字, ${skipCount}张无文字跳过, ${data.mediaUrls.length - successCount - skipCount}张失败`);
+    update('images', 'done', `${successCount}有文字 ${skipCount}跳过`);
   }
-  const successCount = imageDescs.filter(d => !d.startsWith('*图片无法识别')).length;
-  log.info('images', `图片文字提取完成: ${successCount}张有文字, ${skipCount}张无文字跳过, ${data.mediaUrls.length - successCount - skipCount}张失败`);
-  update('images', 'done', `${successCount}有文字 ${skipCount}跳过`);
 
   // 步骤 3: 评论
   log.info('comments', `评论数据: ${data.comments.length}条`);

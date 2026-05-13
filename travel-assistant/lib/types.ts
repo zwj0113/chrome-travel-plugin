@@ -51,6 +51,7 @@ export interface ExtractConfig {
   commentCount: 20 | 50 | 100 | 0; // 0 = 全部
   commentSort: 'hot' | 'time';
   downloadVideo: boolean;
+  enableImageRecognition: boolean; // 小红书图片识别（下载+base64）
 }
 
 /** 用户设置 */

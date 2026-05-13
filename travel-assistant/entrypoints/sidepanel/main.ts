@@ -57,6 +57,13 @@ function renderIdleState(history: HistoryEntry[]): string {
               <label><input type="radio" name="download" value="true"> 下载+转录</label>
             </div>
           </div>
+          <div class="form-group">
+            <label class="form-label">图片识别（小红书）</label>
+            <div class="form-radio-group">
+              <label><input type="radio" name="imageRecognition" value="true" checked> 识别（下载+转base64）</label>
+              <label><input type="radio" name="imageRecognition" value="false"> 跳过（仅收集URL）</label>
+            </div>
+          </div>
           <div class="modal-actions">
             <button id="btn-cancel-config" class="btn btn-outline">取消</button>
             <button id="btn-confirm-config" class="btn btn-primary">开始提取</button>
@@ -138,7 +145,8 @@ function getConfig(): ExtractConfig {
   const commentCount = parseInt((document.getElementById('cfg-comments') as HTMLSelectElement).value) as ExtractConfig['commentCount'];
   const commentSort = (document.getElementById('cfg-sort') as HTMLSelectElement).value as ExtractConfig['commentSort'];
   const downloadVideo = (document.querySelector('input[name="download"]:checked') as HTMLInputElement)?.value === 'true';
-  return { commentCount, commentSort, downloadVideo };
+  const enableImageRecognition = (document.querySelector('input[name="imageRecognition"]:checked') as HTMLInputElement)?.value !== 'false';
+  return { commentCount, commentSort, downloadVideo, enableImageRecognition };
 }
 
 async function startExtraction() {
@@ -151,7 +159,7 @@ async function startExtraction() {
 
   try {
     // 请求内容脚本提取数据
-    const response = await chrome.tabs.sendMessage(tab.id, { type: MSG.EXTRACT_PAGE_DATA, config: { commentSort: config.commentSort, commentCount: config.commentCount } }, { frameId: 0 });
+    const response = await chrome.tabs.sendMessage(tab.id, { type: MSG.EXTRACT_PAGE_DATA, config: { commentSort: config.commentSort, commentCount: config.commentCount, enableImageRecognition: config.enableImageRecognition } }, { frameId: 0 });
     if (!response?.data) throw new Error('无法提取页面数据');
 
     // 请求 background 执行流水线

@@ -2,6 +2,7 @@ import type { AdapterOutput, Comment } from '../lib/types';
 import { MSG } from '../lib/messages';
 import type { PageDataExtractedPayload, StartExtractionPayload, ExtractionCompletePayload, ProgressUpdatePayload } from '../lib/messages';
 
+
 export default defineContentScript({
   matches: ['*://*.bilibili.com/video/*'],
   main() {
@@ -110,7 +111,7 @@ async function extractBilibiliData(sort?: string, maxCount?: number): Promise<Ad
       }
     }
   }
-  console.log('[travel-assistant] bilibili extract diag:', diag.join(' | '));
+  console.log('bilibili extract diag:', diag.join(' | '));
 
   // 提取评论（从 API，支持跨 mode 分页）
   const comments: Comment[] = [];

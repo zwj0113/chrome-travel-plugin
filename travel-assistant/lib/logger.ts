@@ -22,16 +22,25 @@ class PipelineLogger {
     return `${pad(h)}:${pad(m)}:${pad(s)}.${pad(ms, 3)}`;
   }
 
+  private log(level: 'INFO' | 'WARN' | 'ERROR', step: string, message: string) {
+    this.entries.push({ time: this.ts(), level, step, message });
+    const label = `[${level}] [${step}]`;
+    const line = `[travel-assistant] ${label} ${message}`;
+    if (level === 'ERROR') console.error(line);
+    else if (level === 'WARN') console.warn(line);
+    else console.log(line);
+  }
+
   info(step: string, message: string) {
-    this.entries.push({ time: this.ts(), level: 'INFO', step, message });
+    this.log('INFO', step, message);
   }
 
   warn(step: string, message: string) {
-    this.entries.push({ time: this.ts(), level: 'WARN', step, message });
+    this.log('WARN', step, message);
   }
 
   error(step: string, message: string) {
-    this.entries.push({ time: this.ts(), level: 'ERROR', step, message });
+    this.log('ERROR', step, message);
   }
 
   getAll(): LogEntry[] {

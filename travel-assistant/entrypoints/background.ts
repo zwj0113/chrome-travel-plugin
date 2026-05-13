@@ -89,14 +89,30 @@ export default defineBackground(() => {
 
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.type === MSG.START_EXTRACTION) {
+      console.log(`[travel-assistant] BACKGROUND: 收到提取请求, tabId=${msg.tabId}, platform=${msg.config?.platform}`);
       handleStartExtraction(msg.tabId, msg.config)
-        .then((result) => sendResponse(result))
-        .catch((err) => sendResponse({ error: err.message }));
+        .then((result) => {
+          console.log(`[travel-assistant] BACKGROUND: 提取完成, result=${JSON.stringify(result)}`);
+          sendResponse(result);
+        })
+        .catch((err) => {
+          console.error(`[travel-assistant] BACKGROUND: 提取失败, error=${err.message}`);
+          sendResponse({ error: err.message });
+        });
       return true;
     }
 
     if (msg.type === MSG.CANCEL_EXTRACTION) {
+      console.log('[travel-assistant] BACKGROUND: 收到取消请求');
       cancelled = true;
+      return false;
+    }
+
+    if (msg.type === MSG.REMOTE_LOG) {
+      const line = `[travel-assistant] [CS] ${msg.message}`;
+      if (msg.level === 'error') console.error(line);
+      else if (msg.level === 'warn') console.warn(line);
+      else console.log(line);
       return false;
     }
   });
@@ -112,13 +128,15 @@ export default defineBackground(() => {
   async function handleStartExtraction(tabId: number, config: ExtractConfig) {
     cancelled = false;
 
-    const response: any = await chrome.tabs.sendMessage(tabId, { type: MSG.EXTRACT_PAGE_DATA, config: { commentSort: config.commentSort, commentCount: config.commentCount } }, { frameId: 0 });
+    const response: any = await chrome.tabs.sendMessage(tabId, { type: MSG.EXTRACT_PAGE_DATA, config: { commentSort: config.commentSort, commentCount: config.commentCount, enableImageRecognition: config.enableImageRecognition } }, { frameId: 0 });
 
     if (!response?.data) {
+      console.error('[travel-assistant] BACKGROUND: 无法提取页面数据,', response?.error || '未知错误');
       throw new Error(response?.error || '无法提取页面数据');
     }
 
     const data = response.data;
+    console.log(`[travel-assistant] BACKGROUND: 页面数据提取成功, type=${data.type}, platform=${data.platform}, title="${data.title}"`);
 
     const onProgress = (state: PipelineState) => {
       chrome.runtime.sendMessage({

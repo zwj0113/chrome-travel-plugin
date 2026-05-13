@@ -22,6 +22,9 @@ export const MSG = {
 
   // Background → 内容脚本（下载媒体）
   DOWNLOAD_AUDIO: 'downloadAudio',
+
+  // 内容脚本 → Background（日志转发）
+  REMOTE_LOG: 'remoteLog',
 } as const;
 
 /** 消息载荷类型 */
